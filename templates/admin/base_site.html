@@ -1,0 +1,936 @@
+{% load static %}{% load music_tags %}
+<!-- SERVER CACHE BUSTER -->
+<!DOCTYPE HTML>
+<html>
+<script>
+    // Suppress entrance animation on Refresh (sessionStorage flag set by Refresh button)
+    if (sessionStorage.getItem('no_entrance_anim') === '1') {
+        document.documentElement.classList.add('no-entrance-anim');
+        sessionStorage.removeItem('no_entrance_anim');
+    }
+</script>
+<head>
+    <title>{% block title %}Administration{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{% static 'music/images/favicon.png' %}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="keywords"
+        content="Aurora administration, Django admin, music catalog management, playlist management" />
+
+    <script type="application/x-javascript">
+        addEventListener("load", function () {
+            setTimeout(hideURLbar, 0);
+        }, false);
+        function hideURLbar() {
+            window.scrollTo(0, 1);
+        } 
+    </script>
+
+    <!-- Load CSS with Django static tags -->
+    <link href="{% static 'music/css/bootstrap.css' %}" rel='stylesheet' type='text/css' />
+    <link href="{% static 'music/css/admin_style.css' %}?v=1.1-showcase" rel='stylesheet' type='text/css' />
+    <link href="{% static 'music/css/admin_player.css' %}?v=2.0-showcase" rel='stylesheet' type='text/css' />
+    <link href="{% static 'music/css/admin_discovery.css' %}?v=1.7-showcase" rel='stylesheet' type='text/css' />
+    <link href="{% static 'music/css/admin_pdv.css' %}?v=1.0" rel='stylesheet' type='text/css' />
+    <link href="{% static 'music/css/admin_play_queue.css' %}?v=1.0" rel='stylesheet' type='text/css' />
+
+    <!-- Webfonts (local) -->
+    <link href="{% static 'music/css/local_fonts.css' %}" rel='stylesheet' type='text/css'>
+
+    <!-- JS via static tags -->
+    <script type="text/javascript" src="{% static 'music/js/jquery-1.11.1.min.js' %}"></script>
+    <script src="{% static 'music/js/menu_jquery.js' %}?v=1.1"></script>
+
+    <!-- Server-side config for external JS files -->
+    <script>
+        window.AURORA = {
+            isAuthenticated: {% if request.user.is_authenticated %}true{% else %}false{% endif %},
+            username: "{{ request.user.username|escapejs }}",
+            secondaryTypes: {% secondary_type_names_json %}
+        };
+    </script>
+
+    <script>
+        (function() {
+            function getTrueWidth(target, container) {
+                if (!target) return 0;
+                const ghost = target.cloneNode(true);
+                ghost.style.cssText = 'position:absolute !important; top:-9999px !important; left:-9999px !important; width:auto !important; max-width:none !important; min-width:0 !important; display:inline-block !important; white-space:nowrap !important; visibility:hidden !important;';
+                container.appendChild(ghost);
+                const width = ghost.getBoundingClientRect().width;
+                container.removeChild(ghost);
+                return width;
+            }
+
+            function updateMarquees() {
+                document.querySelectorAll('.song-title-wrapper').forEach(wrapper => {
+                    const marquee = wrapper.querySelector('.song-title-marquee');
+                    const link = wrapper.querySelector('.song-title-link');
+                    if (!marquee || !link) return;
+
+                    const sw = getTrueWidth(link, marquee);
+                    const cw = wrapper.clientWidth;
+                    if (cw === 0) return;
+
+                    const prevSw = parseFloat(wrapper.dataset.marqueeSw || 0);
+                    const prevCw = parseFloat(wrapper.dataset.marqueeCw || 0);
+                    if (wrapper.classList.contains('is-marquee-init') &&
+                        Math.abs(prevSw - sw) < 1 && Math.abs(prevCw - cw) < 1) return;
+
+                    wrapper.classList.remove('is-overflowing', 'is-marquee-init');
+                    Array.from(marquee.childNodes).forEach(node => {
+                        if (node !== link) marquee.removeChild(node);
+                    });
+                    wrapper.dataset.marqueeSw = sw;
+                    wrapper.dataset.marqueeCw = cw;
+
+                    if (sw > cw + 1) {
+                        wrapper.classList.add('is-overflowing', 'is-marquee-init');
+                        const spacer = '\u00A0\u00A0\u00A0\u00A0\u00A0';
+                        const clone = link.cloneNode(true);
+                        marquee.appendChild(document.createTextNode(spacer));
+                        marquee.appendChild(clone);
+                        marquee.appendChild(document.createTextNode(spacer));
+                        const travelDistance = marquee.scrollWidth / 2;
+                        marquee.style.animationDuration = (travelDistance / 60).toFixed(2) + 's';
+                    }
+                });
+
+                document.querySelectorAll('.hover-marquee-wrapper').forEach(wrapper => {
+                    const content = wrapper.querySelector('.hover-marquee-content');
+                    if (!content) return;
+
+                    if (!content.dataset.originalHtml) {
+                        content.dataset.originalHtml = content.innerHTML;
+                    } else {
+                        content.innerHTML = content.dataset.originalHtml;
+                    }
+                    wrapper.classList.remove('is-overflowing', 'is-marquee-init');
+
+                    const cw = wrapper.clientWidth;
+                    if (cw === 0) return;
+
+                    const ghost = content.cloneNode(true);
+                    ghost.style.cssText = 'position:absolute !important; top:-9999px !important; left:-9999px !important; width:auto !important; max-width:none !important; min-width:0 !important; display:inline-block !important; white-space:nowrap !important; visibility:hidden !important;';
+                    ghost.querySelectorAll('a').forEach(a => a.style.width = 'auto');
+                    document.body.appendChild(ghost);
+                    const sw = ghost.offsetWidth;
+                    document.body.removeChild(ghost);
+
+                    if (sw > cw + 1.5) {
+                        wrapper.classList.add('is-overflowing', 'is-marquee-init');
+                        const spacer = '<span class="js-marquee-unit js-marquee-spacer">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>';
+                        const clone = content.innerHTML;
+                        content.innerHTML += spacer + clone + spacer;
+                        Array.from(content.children).slice(content.children.length / 2).forEach(child => {
+                            child.classList.add('js-marquee-unit', 'js-marquee-clone');
+                        });
+                        content.style.animationDuration = (sw / 60).toFixed(2) + 's';
+                    }
+                });
+            }
+
+            function initPageFeatures() {
+                updateMarquees();
+            }
+
+            window.updateMarquees = updateMarquees;
+            if (!window.initPageFeatures) {
+                window.initPageFeatures = initPageFeatures;
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+                if (window.initPageFeatures) window.initPageFeatures();
+            });
+
+            window.addEventListener('resize', function() {
+                window.clearTimeout(window.adminMarqueeResizeTimer);
+                window.adminMarqueeResizeTimer = window.setTimeout(updateMarquees, 120);
+            });
+        })();
+    </script>
+
+    <!-- External JS (extracted from inline) -->
+    <!-- No player scripts for Admin -->
+    <!-- AURORA Custom Titlebar CSS -->
+    <style>
+        .header {
+            -webkit-app-region: drag !important;
+            user-select: none;
+        }
+        .header-container > *:not(.window-controls) {
+            -webkit-app-region: no-drag !important;
+        }
+        .window-controls {
+            display: flex;
+            align-items: center;
+            position: absolute;
+            right: 15px; /* Give some right margin right natively */
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 0;
+            gap: 15px; /* Generous unified gap */
+            -webkit-app-region: no-drag !important;
+        }
+        .window-btn {
+            width: 32px; /* Rebalanced unified size */
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: rgba(255,255,255,0.4);
+            border-radius: 50%;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            -webkit-app-region: no-drag !important;
+        }
+        .window-btn:hover {
+            color: var(--jewel-red-hover);
+            transform: scale(1.2); /* Slightly larger scale since no background */
+        }
+        .window-btn.window-btn-maximize:hover {
+            color: var(--aurora-purple);
+        }
+        .window-btn.window-btn-close:hover {
+            color: #ff4d4d;
+        }
+        
+        body.is-maximized .icon-maximize { display: none; }
+        body.is-maximized .icon-restore { display: inline-block; }
+        body:not(.is-maximized) .icon-maximize { display: inline-block; }
+        body:not(.is-maximized) .icon-restore { display: none; }
+        .window-btn svg {
+            transition: transform 0.2s;
+        }
+        .window-btn:active {
+            transform: scale(0.95);
+            opacity: 0.7;
+        }
+        /* Admin Layout Adjustments (No Player) */
+        .main-scrollable-area {
+            height: calc(100vh - 65px) !important;
+            padding-bottom: 20px !important;
+        }
+        .app-layout {
+            height: 100vh !important;
+        }
+        .secondary-type-label {
+            color: #FFD000 !important;
+            text-shadow: 0 0 10px rgba(255, 208, 0, 0.35);
+        }
+    </style>
+
+    <style>
+        :root {
+            --jewel-red: rgba(255, 45, 75, 0.7);
+            --jewel-red-dark: rgba(160, 20, 35, 0.55);
+            --jewel-red-hover: rgba(255, 90, 110, 0.95);
+            --aurora-purple: #FFD000;
+            --aurora-purple-glow: rgba(255, 200, 0, 0.8);
+            --admin-app-bg: url('/static/music/images/showcase_admin_bg.jpg');
+        }
+        body, .app-layout {
+            background: var(--admin-app-bg) no-repeat center center fixed !important;
+            background-size: cover !important;
+        }
+        .main-column .header {
+            background: var(--jewel-red-dark) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            box-shadow: 0 2px 10px rgba(160, 20, 35, 0.4) !important;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+    <!-- App Shell Layout -->
+    <!-- Window Controls UI -->
+    <!-- App Shell Layout -->
+    <div class="app-layout">
+
+        <!-- Fixed Left Sidebar (Admin Version) -->
+        <nav class="glass-sidebar">
+            <div class="sidebar-logo">
+                <h1><a href="{% url 'admin:index' %}">AURORA</a></h1>
+            </div>
+
+            <div class="sidebar-menu">
+                <div class="sidebar-section-header">
+                    <h4>Administration</h4>
+                </div>
+                <a href="{% url 'admin:index' %}"
+                    class="sidebar-pill flex-align {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#FFD700" viewBox="0 0 16 16">
+                        <path
+                            d="M8 1.5L1.5 6.5V13c0 .8.65 1.5 1.5 1.5h10c.85 0 1.5-.7 1.5-1.5V6.5L8 1.5z M8.5 6v4a.5.5 0 0 1-1 0V6a.5.5 0 0 1 1 0z" />
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+
+                <a href="{% url 'admin:music_song_changelist' %}"
+                    class="sidebar-pill flex-align {% if 'song' in request.path %}active{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"
+                         style="color: var(--jewel-red);">
+                        <path
+                            d="M1 4.5A1.5 1.5 0 0 1 2.5 3h11A1.5 1.5 0 0 1 15 4.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 11.5v-7z" />
+                        <path
+                            d="M4 11a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
+                    </svg>
+                    <span>Songs</span>
+                </a>
+
+                <a href="{% url 'admin:music_user_changelist' %}"
+                    class="sidebar-pill flex-align {% if 'user' in request.path %}active{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"
+                         style="color: var(--jewel-red);">
+                        <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+                        <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z"/>
+                    </svg>
+                    <span>User</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- Main Content Column -->
+        <div class="main-column">
+
+            <!-- Fixed Top Header -->
+            <header class="header">
+                <div class="header-container"
+                    style="display: flex; align-items: center; width: 100%;">
+                    
+                    <!-- Back Button Area -->
+                    <div class="header-back-btn" id="header-back-btn" onclick="handleHeaderBack(event)" title="Go Back">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                        </svg>
+                    </div>
+                    
+                    <!-- Global Search Bar in Header -->
+                    <div class="global-search-container" style="flex: 1 1 auto; max-width: 500px; margin-right: 30px; margin-left: 5px;">
+                        <form action="{% url 'admin:music_song_changelist' %}" method="get"
+                            style="width: 100%; display: flex; position: relative; align-items: center;">
+                            {% if active_tab %}
+                            <input type="hidden" name="tab" value="{{ active_tab }}">
+                            {% endif %}
+                            <input type="text" name="q" id="search-input" placeholder="Search for title, album, artist..."
+                                value="{{ q|default:'' }}"
+                                style="width: 100%; padding: 8px 60px 8px 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff; outline: none; transition: all 0.3s;"
+                                onfocus="this.style.borderColor='var(--jewel-red)'; this.style.boxShadow='0 0 10px rgba(160, 20, 35, 0.3)';"
+                                onblur="this.style.borderColor='rgba(255,255,255,0.2)'; this.style.boxShadow='none';" />
+                            
+                            <!-- Search Clear (X) Button -->
+                            <div id="clear-search" 
+                                style="position: absolute; right: 40px; top: 50%; transform: translateY(-50%); cursor: pointer; color: rgba(255,255,255,0.7); display: none; transition: all 0.2s; width: 30px; height: 30px; align-items: center; justify-content: center; z-index: 2;"
+                                onmouseover="this.style.color='#ff4444'; this.style.transform='translateY(-50%) scale(1.15)';"
+                                onmouseout="this.style.color='rgba(255,255,255,0.7)'; this.style.transform='translateY(-50%) scale(1)';"
+                                title="Clear search">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                                </svg>
+                            </div>
+
+                            <button type="submit"
+                                style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; background: transparent; border: none; color: var(--jewel-red); cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; outline: none; z-index: 2;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor"
+                                    viewBox="0 0 16 16">
+                                    <path
+                                        d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="top_right" style="flex: 0 0 auto; display: flex; align-items: center; height: 100%; margin-left: auto; margin-right: 120px; margin-top: 0 !important;">
+                        {% if request.user.is_authenticated %}
+                        <!-- Logged In View -->
+                        <ul style="display: flex; align-items: center; list-style: none; margin: 0; padding: 0;">
+                            <li class='login'>
+                                <div id='loginContainer' style="display: flex; align-items: center;">
+                                    <a href="#" id="userAvatarButton"
+                                        style="display: inline-block; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; margin: 0; padding: 0; outline: none; border: 2px solid rgba(255,255,255,0.4); cursor: pointer; transition: all 0.3s; box-shadow: 0 0 10px rgba(0,0,0,0.3);"
+                                        onmouseover="this.style.borderColor='var(--jewel-red)';" onmouseout="this.style.borderColor='rgba(255,255,255,0.4)';">
+                                        <img src="{% if user_profile %}{{ user_profile.avatar.url }}{% else %}/media/avatars/default.jpeg{% endif %}"
+                                            style="width: 100%; height: 100%; object-fit: cover;" alt="Avatar"
+                                            onerror="this.onerror=null; this.src='/media/avatars/default.jpeg';" />
+                                    </a>
+                                    <div id='loginBox'>
+                                        <form id='loginForm'>
+                                            <fieldset id='body'>
+                                                <fieldset>
+                                                    <span
+                                                        style="display: block; text-align: center; padding: 10px 0; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 5px;">
+                                                        <b>{{ request.user.username }}</b>
+                                                    </span>
+                                                </fieldset>
+                                                <!-- Dynamic links -->
+                                                <fieldset><span><a href="{% url 'music:index' %}" id='loginButton'>Discovery</a></span>
+                                                </fieldset>
+                                            </fieldset>
+                                        </form>
+                                    </div>
+                                </div>
+                            </li>
+                        </ul>
+                        {% else %}
+                        <!-- Logged Out View -->
+                        <ul
+                            style="display: flex; align-items: center; list-style: none; margin: 0; padding: 0; gap: 10px;">
+                            <li class="login" style="margin: 0;">
+                                <a href="#" id="openLoginModal"
+                                    style="display: block; padding: 5px 0; outline: none; text-decoration: none; color: rgba(255,255,255,0.8); transition: color 0.3s;"
+                                    onmouseover="this.style.color='#fff'"
+                                    onmouseout="this.style.color='rgba(255,255,255,0.8)'"><span>Login</span></a>
+                            </li>
+                        </ul>
+                        {% endif %}
+                    </div>
+                    <!-- AURORA Custom Buttons -->
+                    <div class="window-controls">
+                        <!-- MINIMIZE -->
+                        <div class="window-btn" onclick="if(window.electronAPI) window.electronAPI.minimize()" title="Minimize">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="12" x2="20" y2="12"></line></svg>
+                        </div>
+                        
+                        <!-- MAXIMIZE / RESTORE -->
+                        <div class="window-btn window-btn-maximize" onclick="if(window.electronAPI) window.electronAPI.maximize()" title="Maximize / Restore">
+                            <svg class="icon-maximize" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="4" y="4" width="16" height="16" rx="1" ry="1"></rect>
+                            </svg>
+                            <svg class="icon-restore" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="4" y="8" width="12" height="12" rx="1" ry="1"></rect>
+                                <path d="M8 8V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-3"></path>
+                            </svg>
+                        </div>
+                        
+                        <!-- CLOSE -->
+                        <div class="window-btn window-btn-close" onclick="if(window.electronAPI) window.electronAPI.close()" title="Close">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="5" x2="19" y2="19"></line><line x1="5" y1="19" x2="19" y2="5"></line></svg>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Scrollable Page Content -->
+            <main class="main-scrollable-area" id="main-content">
+                <div id="dynamic-content">
+                    {% block content %}
+                    {% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Player items removed for Admin -->
+
+
+
+
+
+    <!-- Global Auth Modal -->
+    <div id="authModalOverlay"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9999; justify-content: center; align-items: center;">
+
+        <div id="authModalBox"
+            style="position: relative; max-width: 500px; width: 100%; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); padding: 3em; border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
+            <button id="closeAuthModal"
+                style="position: absolute; top: 15px; right: 25px; color: rgba(255,255,255,0.5); font-size: 2em; background: transparent; border: none; cursor: pointer; transition: all 0.3s ease; line-height: 1; z-index: 10;"
+                onmouseover="this.style.color='#ff4444';"
+                onmouseout="this.style.color='rgba(255,255,255,0.5)';">&times;</button>
+
+            <div style="display: flex; justify-content: center; gap: 30px; margin-bottom: 25px;">
+                <a href="#" class="auth-tab active" id="tabBtnLogin"
+                    style="color: #fff; text-decoration: none; font-size: 1.5em; font-weight: normal; text-transform: uppercase;">Login</a>
+                <a href="#" class="auth-tab" id="tabBtnRegister"
+                    style="color: rgba(255,255,255,0.5); text-decoration: none; font-size: 1.5em; font-weight: normal; transition: color 0.3s; text-transform: uppercase;">Register</a>
+            </div>
+
+            <!-- Login Content (Original UI) -->
+            <div id="modalLoginForm">
+                <div id="modalInnerAuthBox"
+                    style="display: block; position: static; box-shadow: none; background: transparent !important; border: none !important;">
+                    <form id="modalOverlayLoginForm" action="{% url 'music:login' %}" method="POST"
+                        style="margin: 0; width: 100%; float: none;">
+                        {% csrf_token %}
+                        <div id="loginErrorMessage" style="color: #ff4d6d; font-size: 0.9em; margin-bottom: 1.5em; display: none; text-align: center; background: rgba(255, 77, 109, 0.1); padding: 10px; border-radius: 6px; border: 1px solid rgba(255, 77, 109, 0.2);"></div>
+                        <fieldset id="modalInnerAuthBody" style="padding: 0; border: none; background: transparent;">
+                            <fieldset
+                                style="width: 100%; padding: 0; margin: 0 0 1.5em 0; border: none; background: transparent;">
+                                <label for="uname"
+                                    style="color: #FFF; font-weight: normal; margin-bottom: 0.5em; font-size: 1em; display: block; line-height: 1;">Username<span
+                                        style="color: #FFF; display: inline;">*</span></label>
+                                <input type="text" name="uname" id="uname" required
+                                    style="width: 100%; box-sizing: border-box; background: #FFF !important; color: #555 !important; border: 1px solid #DFDFDF !important; padding: 0.6em; border-radius: 4px; outline: none; transition: border-color 0.3s, box-shadow 0.3s; font-size: 0.95em;"
+                                    onfocus="this.style.setProperty('border-color', '#00C78A', 'important'); this.style.setProperty('box-shadow', '0 0 10px rgba(0, 199, 138, 0.3)', 'important');"
+                                    onblur="this.style.setProperty('border-color', '#DFDFDF', 'important'); this.style.setProperty('box-shadow', 'none', 'important');">
+                            </fieldset>
+                            <fieldset
+                                style="width: 100%; padding: 0; margin: 0 0 1.5em 0; border: none; background: transparent;">
+                                <label for="password"
+                                    style="color: #FFF; font-weight: normal; margin-bottom: 0.5em; font-size: 1em; display: block; line-height: 1;">Password<span
+                                        style="color: #FFF; display: inline;">*</span></label>
+                                <input type="password" name="password" id="password" required
+                                    style="width: 100%; box-sizing: border-box; background: #FFF !important; color: #555 !important; border: 1px solid #DFDFDF !important; padding: 0.6em; border-radius: 4px; outline: none; transition: border-color 0.3s, box-shadow 0.3s; font-size: 0.95em;"
+                                    onfocus="this.style.setProperty('border-color', '#00C78A', 'important'); this.style.setProperty('box-shadow', '0 0 10px rgba(0, 199, 138, 0.3)', 'important');"
+                                    onblur="this.style.setProperty('border-color', '#DFDFDF', 'important'); this.style.setProperty('box-shadow', 'none', 'important');">
+                            </fieldset>
+                            <div style="margin-top: 2.5em; text-align: center;">
+                                <input type="submit" id="login" value="Sign in"
+                                    style="font-family: 'Open Sans', sans-serif; background: rgba(255, 255, 255, 0.05); color: #00C78A; border: 1px solid rgba(0, 199, 138, 0.4); padding: 12px 0; border-radius: 6px; font-weight: 500; font-size: 1.1em; cursor: pointer; transition: all .3s; width: 75%; display: block; margin: 0 auto; letter-spacing: 1px;"
+                                    onmouseover="this.style.background='rgba(0, 199, 138, 0.15)'; this.style.color='#00ffb3'; this.style.borderColor='#00C78A'; this.style.boxShadow='0 0 15px rgba(0, 199, 138, 0.3)';"
+                                    onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'; this.style.color='#00C78A'; this.style.borderColor='rgba(0, 199, 138, 0.4)'; this.style.boxShadow='none';">
+                            </div>
+                        </fieldset>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Register Content (Original UI) -->
+            <div id="modalRegisterForm" style="display: none;">
+                <form id="modalAuthRegisterForm" action="{% url 'music:register' %}" method="POST"
+                    enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="modal-auth-register-grid" style="width: 100%; float: none;">
+                        <div
+                            style="width: 100%; margin-bottom: 1.5em; float: none; background: transparent !important; padding: 0; border: none;">
+                            <span
+                                style="color: #FFF; font-weight: normal; font-size: 1em; display: block; margin-bottom: 0.5em; line-height: 1;">Username<span
+                                    style="color:#FFF; display: inline;">*</span></span>
+                            <input type="text" name="username" id="reg_username" required
+                                style="width: 100%; box-sizing: border-box; background: #FFF !important; color: #555 !important; border: 1px solid #DFDFDF !important; padding: 0.6em; border-radius: 4px; outline: none; transition: border-color 0.3s, box-shadow 0.3s; font-size: 0.95em;"
+                                onfocus="this.style.setProperty('border-color', '#00C78A', 'important'); this.style.setProperty('box-shadow', '0 0 10px rgba(0, 199, 138, 0.3)', 'important');"
+                                onblur="this.style.setProperty('border-color', '#DFDFDF', 'important'); this.style.setProperty('box-shadow', 'none', 'important');">
+                        </div>
+
+                        <div
+                            style="width: 100%; margin-bottom: 1.5em; float: none; background: transparent !important; padding: 0; border: none;">
+                            <span
+                                style="color: #FFF; font-weight: normal; font-size: 1em; display: block; margin-bottom: 0.5em; line-height: 1;">Email
+                                Address<span style="color:#FFF; display: inline;">*</span></span>
+                            <input type="email" name="email" id="reg_email" required
+                                style="width: 100%; box-sizing: border-box; background: #FFF !important; color: #555 !important; border: 1px solid #DFDFDF !important; padding: 0.6em; border-radius: 4px; outline: none; transition: border-color 0.3s, box-shadow 0.3s; font-size: 0.95em;"
+                                onfocus="this.style.setProperty('border-color', '#00C78A', 'important'); this.style.setProperty('box-shadow', '0 0 10px rgba(0, 199, 138, 0.3)', 'important');"
+                                onblur="this.style.setProperty('border-color', '#DFDFDF', 'important'); this.style.setProperty('box-shadow', 'none', 'important');">
+                        </div>
+
+                        <div
+                            style="width: 100%; margin-bottom: 1.5em; float: none; background: transparent !important; padding: 0; border: none;">
+                            <span
+                                style="color: #FFF; font-weight: normal; font-size: 1em; display: block; margin-bottom: 0.5em; line-height: 1;">Password<span
+                                    style="color:#FFF; display: inline;">*</span></span>
+                            <input type="password" name="password" id="reg_password" required
+                                style="width: 100%; box-sizing: border-box; background: #FFF !important; color: #555 !important; border: 1px solid #DFDFDF !important; padding: 0.6em; border-radius: 4px; outline: none; transition: border-color 0.3s, box-shadow 0.3s; font-size: 0.95em;"
+                                onfocus="this.style.setProperty('border-color', '#00C78A', 'important'); this.style.setProperty('box-shadow', '0 0 10px rgba(0, 199, 138, 0.3)', 'important');"
+                                onblur="this.style.setProperty('border-color', '#DFDFDF', 'important'); this.style.setProperty('box-shadow', 'none', 'important');">
+                        </div>
+
+                        <div
+                            style="width: 100%; margin-bottom: 1.5em; float: none; background: transparent !important; padding: 0; border: none;">
+                            <span
+                                style="color: #FFF; font-weight: normal; font-size: 1em; display: block; margin-bottom: 0.5em; line-height: 1;">Confirm
+                                Password<span style="color:#FFF; display: inline;">*</span></span>
+                            <input type="password" name="confirm_password" id="reg_confirm_password" required
+                                style="width: 100%; box-sizing: border-box; background: #FFF !important; color: #555 !important; border: 1px solid #DFDFDF !important; padding: 0.6em; border-radius: 4px; outline: none; transition: border-color 0.3s, box-shadow 0.3s; font-size: 0.95em;"
+                                onfocus="this.style.setProperty('border-color', '#00C78A', 'important'); this.style.setProperty('box-shadow', '0 0 10px rgba(0, 199, 138, 0.3)', 'important');"
+                                onblur="this.style.setProperty('border-color', '#DFDFDF', 'important'); this.style.setProperty('box-shadow', 'none', 'important');">
+                        </div>
+
+                        <div class="register-but"
+                            style="margin-top: 2.5em; text-align: center; float: none; width: 100%;">
+                            <input type="submit" value="Register"
+                                style="font-family: 'Open Sans', sans-serif; background: rgba(255, 255, 255, 0.05); color: #00C78A; border: 1px solid rgba(0, 199, 138, 0.4); padding: 12px 0; border-radius: 6px; font-weight: 500; font-size: 1.1em; cursor: pointer; transition: all .3s; width: 75%; display: block; margin: 0 auto; letter-spacing: 1px;"
+                                onmouseover="this.style.background='rgba(0, 199, 138, 0.15)'; this.style.color='#00ffb3'; this.style.borderColor='#00C78A'; this.style.boxShadow='0 0 15px rgba(0, 199, 138, 0.3)';"
+                                onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'; this.style.color='#00C78A'; this.style.borderColor='rgba(0, 199, 138, 0.4)'; this.style.boxShadow='none';">
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playlist Modal Overlay -->
+    <div class="playlist-modal-overlay" id="playlist-modal-overlay">
+        <div class="playlist-modal">
+            <div class="playlist-modal-close" id="playlist-modal-close">&times;</div>
+            <div class="playlist-modal-title">Add to Playlist</div>
+            <div class="playlist-list-container">
+                <div class="playlist-item create-playlist-btn" id="open-create-from-list">
+                    <div class="playlist-item-img">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </div>
+                    <div class="playlist-item-info">
+                        <div class="playlist-item-name">Create New Playlist</div>
+                    </div>
+                </div>
+                <div id="user-playlists-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Playlist Modal Overlay -->
+    <div class="playlist-modal-overlay" id="create-playlist-overlay">
+        <div class="playlist-modal">
+            <div class="playlist-modal-close" id="create-playlist-close">&times;</div>
+            <div class="playlist-modal-title">Create Playlist</div>
+            <form id="create-playlist-form">
+                <input type="text" class="playlist-input" placeholder="Enter playlist title" id="new-playlist-title"
+                    required>
+                <label class="playlist-checkbox-container">
+                    <input type="checkbox" class="playlist-checkbox" id="is-private-playlist">
+                    <span style="color: rgba(255,255,255,0.5); font-weight: 700; text-transform: uppercase; font-size: 13px; letter-spacing: 2px;"></span>
+                </label>
+                <button type="submit" class="playlist-create-submit" style="background: var(--aurora-bg-alpha); color: var(--jewel-red); border: 1px solid var(--aurora-border-alpha); padding: 10px 20px; border-radius: 20px; font-weight: 700; cursor: pointer; transition: all 0.3s; width: 100%; margin-top: 10px;" onmouseover="this.style.background='var(--aurora-bg-alpha-hover)'; this.style.borderColor='var(--jewel-red)'; this.style.boxShadow='0 5px 15px var(--aurora-shadow)'; this.style.color='var(--jewel-red-hover)';" onmouseout="this.style.background='var(--aurora-bg-alpha)'; this.style.color='var(--jewel-red)'; this.style.borderColor='var(--aurora-border-alpha)';" >Create</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Global Aurora Dialog Overlay -->
+    <div class="hub-dialog-overlay" id="hub-dialog-overlay">
+        <div class="hub-dialog-card">
+            <div class="hub-dialog-title" id="hub-dialog-title">Confirm</div>
+            <div class="hub-dialog-message" id="hub-dialog-message">Are you sure?</div>
+            <div class="hub-dialog-actions" id="hub-dialog-actions">
+                <button class="hub-btn hub-btn-confirm" id="hub-dialog-confirm">Confirm</button>
+                <button class="hub-btn hub-btn-cancel" id="hub-dialog-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Alert Box -->
+    <div class="hub-toast" id="hub-toast">Notification Message</div>
+
+    <!-- Hub Image Cropper Modal -->
+    <div class="cropper-overlay" id="hub-cropper-modal">
+        <div class="cropper-card">
+            <div class="cropper-close" onclick="closeHubCropper()">&times;</div>
+            <div class="cropper-title">Edit Image</div>
+            
+            <div class="cropper-view-box" id="cropper-view-box">
+                <img id="cropper-target-img" src="" draggable="false">
+                <div class="cropper-mask-hole">
+                    <div class="crop-square"></div>
+                </div>
+            </div>
+
+            <div class="cropper-controls">
+                <input type="range" class="cropper-slider" id="cropper-zoom-slider" min="50" max="1000" value="100">
+                <div class="cropper-warning" id="cropper-warning"></div>
+                <div style="font-size: 12px; color: #adb5bd; margin-top: -5px; font-weight: 500;">*Drag the image to adjust its position</div>
+            </div>
+
+            <div class="cropper-actions">
+                <button class="cropper-btn btn-crop-cancel" onclick="closeHubCropper()">Cancel</button>
+                <button class="cropper-btn btn-crop-save" id="btn-crop-save" disabled onclick="handleCropSave()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hub Cropper Engine -->
+    <script>
+        const _cropperState = {
+            img: null, originalFile: null, scale: 1,
+            posX: 0, posY: 0, isDragging: false,
+            startX: 0, startY: 0, callback: null,
+            minRes: 320, isCircle: false
+        };
+
+        function _applyCropperTransform() {
+            const el = document.getElementById('cropper-target-img');
+            const zoom = document.getElementById('cropper-zoom-slider').value / 100;
+            el.style.transform = `translate(${_cropperState.posX}px, ${_cropperState.posY}px) scale(${_cropperState.scale * zoom})`;
+        }
+
+        window.openHubCropper = function(file, callback, isCircle = false) {
+            _cropperState.callback = callback;
+            _cropperState.isCircle = isCircle;
+            const cropBox = document.querySelector('.crop-square');
+            if (cropBox) isCircle ? cropBox.classList.add('is-circle') : cropBox.classList.remove('is-circle');
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const isValid = img.width >= _cropperState.minRes && img.height >= _cropperState.minRes;
+                    const warning = document.getElementById('cropper-warning');
+                    const saveBtn = document.getElementById('btn-crop-save');
+                    document.getElementById('cropper-target-img').src = img.src;
+                    _cropperState.img = img;
+                    warning.innerText = isValid ? '' : `*Please use an image higher than ${_cropperState.minRes}x${_cropperState.minRes}`;
+                    saveBtn.disabled = !isValid;
+
+                    const fitBoxScale = Math.max(320 / img.width, 320 / img.height);
+                    const fitViewScale = Math.max(fitBoxScale, Math.min(440 / img.width, 380 / img.height));
+                    _cropperState.scale = fitBoxScale;
+                    const slider = document.getElementById('cropper-zoom-slider');
+                    slider.min = 100;
+                    slider.max = Math.max(400, (2.0 / fitBoxScale) * 100);
+                    slider.value = (fitViewScale / fitBoxScale) * 100;
+                    _cropperState.posX = 0;
+                    _cropperState.posY = 0;
+                    _applyCropperTransform();
+                    document.getElementById('hub-cropper-modal').classList.add('active');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.closeHubCropper = function() {
+            document.getElementById('hub-cropper-modal').classList.remove('active');
+        };
+
+        window.handleCropSave = function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = _cropperState.minRes;
+            canvas.height = _cropperState.minRes;
+            const ctx = canvas.getContext('2d');
+            const zoom = document.getElementById('cropper-zoom-slider').value / 100;
+            const finalScale = _cropperState.scale * zoom;
+            const imgW = _cropperState.img.width * finalScale;
+            const imgH = _cropperState.img.height * finalScale;
+            const imgLeft = 220 + _cropperState.posX - imgW / 2;
+            const imgTop = 190 + _cropperState.posY - imgH / 2;
+            const sx = (60 - imgLeft) / finalScale;
+            const sy = (30 - imgTop) / finalScale;
+            const sSide = 320 / finalScale;
+            ctx.drawImage(_cropperState.img, sx, sy, sSide, sSide, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+                const croppedFile = new File([blob], 'cropped_cover.jpg', { type: 'image/jpeg' });
+                if (_cropperState.callback) _cropperState.callback(croppedFile);
+                window.closeHubCropper();
+            }, 'image/jpeg', 0.9);
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const cropperBox = document.getElementById('cropper-view-box');
+            if (!cropperBox) return;
+            cropperBox.onmousedown = (e) => {
+                _cropperState.isDragging = true;
+                _cropperState.startX = e.clientX - _cropperState.posX;
+                _cropperState.startY = e.clientY - _cropperState.posY;
+            };
+            window.addEventListener('mousemove', (e) => {
+                if (!_cropperState.isDragging) return;
+                _cropperState.posX = e.clientX - _cropperState.startX;
+                _cropperState.posY = e.clientY - _cropperState.startY;
+                _applyCropperTransform();
+            });
+            window.addEventListener('mouseup', () => _cropperState.isDragging = false);
+            document.getElementById('cropper-zoom-slider').oninput = _applyCropperTransform;
+        });
+    </script>
+    
+    <script>
+        let hubToastTimer = null;
+
+        window.hideHubToast = function() {
+            const toast = document.getElementById('hub-toast');
+            if (!toast) return;
+            toast.classList.remove('show');
+            if (hubToastTimer) {
+                clearTimeout(hubToastTimer);
+                hubToastTimer = null;
+            }
+        };
+
+        window.showHubToast = function(message) {
+            const toast = document.getElementById('hub-toast');
+            if (toast) {
+                toast.textContent = message;
+                toast.classList.add('show');
+                if (hubToastTimer) clearTimeout(hubToastTimer);
+                hubToastTimer = setTimeout(window.hideHubToast, 3000);
+            }
+        };
+
+        document.addEventListener('pointerdown', window.hideHubToast, true);
+
+        window.showHubConfirm = function(title, message, onConfirm, onCancel = null) {
+            const overlay = document.getElementById('hub-dialog-overlay');
+            const elTitle = document.getElementById('hub-dialog-title');
+            const elMsg = document.getElementById('hub-dialog-message');
+            const btnConfirm = document.getElementById('hub-dialog-confirm');
+            const btnCancel = document.getElementById('hub-dialog-cancel');
+
+            if (!overlay || !elTitle || !elMsg || !btnConfirm || !btnCancel) return;
+
+            elTitle.textContent = title;
+            elMsg.textContent = message;
+            
+            const closeDialog = () => {
+                overlay.classList.remove('active');
+                setTimeout(() => { overlay.style.display = 'none'; }, 300);
+            };
+
+            btnConfirm.onclick = () => {
+                closeDialog();
+                if (onConfirm) onConfirm();
+            };
+
+            btnCancel.onclick = () => {
+                closeDialog();
+                if (onCancel) onCancel();
+            };
+
+            overlay.style.display = 'flex';
+            setTimeout(() => { overlay.classList.add('active'); }, 10);
+        };
+    </script>
+
+    <!-- Modal Scripts -->
+    {% block extra_body %}{% endblock %}
+
+    <script>
+        if (window.electronAPI && window.electronAPI.onMaximized) {
+            window.electronAPI.onMaximized(() => { document.body.classList.add('is-maximized'); });
+            window.electronAPI.onUnmaximized(() => { document.body.classList.remove('is-maximized'); });
+        }
+
+        // Admin back button logic
+        const adminDashboardUrl = "{% url 'admin:index' %}";
+
+        function updateAdminBackBtn() {
+            const backBtn = document.getElementById('header-back-btn');
+            if (!backBtn) return;
+            const path = window.location.pathname;
+            if (path === adminDashboardUrl || path === adminDashboardUrl.replace(/\/$/, '')) {
+                backBtn.classList.add('disabled');
+            } else {
+                backBtn.classList.remove('disabled');
+            }
+        }
+
+        window.handleHeaderBack = function(e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            const backBtn = document.getElementById('header-back-btn');
+            if (backBtn && backBtn.classList.contains('disabled')) return;
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = adminDashboardUrl;
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', updateAdminBackBtn);
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchInput = document.getElementById('search-input');
+            const clearBtn = document.getElementById('clear-search');
+
+            if (searchInput && clearBtn) {
+                const toggleClearBtn = () => {
+                    clearBtn.style.display = searchInput.value ? 'flex' : 'none';
+                };
+
+                searchInput.addEventListener('input', toggleClearBtn);
+
+                clearBtn.addEventListener('click', () => {
+                    searchInput.value = '';
+                    toggleClearBtn();
+                    searchInput.focus();
+                });
+
+                toggleClearBtn();
+
+                const searchForm = searchInput.closest('form');
+                if (searchForm) {
+                    searchForm.onsubmit = function(e) {
+                        e.preventDefault();
+
+                        const url = new URL(searchForm.action, window.location.origin);
+                        const formData = new FormData(searchForm);
+                        formData.forEach((value, key) => {
+                            const trimmedValue = String(value).trim();
+                            if (trimmedValue) {
+                                url.searchParams.set(key, trimmedValue);
+                            } else {
+                                url.searchParams.delete(key);
+                            }
+                        });
+                        const currentTab = new URL(window.location.href).searchParams.get('tab') || 'all_songs';
+                        url.searchParams.set('tab', currentTab);
+                        url.searchParams.set('p', '0');
+
+                        if (window.navigatePage) {
+                            window.navigatePage(url.href);
+                        } else {
+                            window.location.href = url.pathname + url.search;
+                        }
+                    };
+                }
+            }
+        });
+
+        function normalizeAdminDetailActions() {
+            const container = document.querySelector('.playlist-detail-container');
+            if (!container) return;
+
+            container.querySelectorAll('.playlist-song-header .playlist-header-cell:last-child').forEach(cell => {
+                cell.textContent = 'Action';
+            });
+            container.querySelectorAll('.batch-select-row > div:last-child').forEach(cell => {
+                cell.textContent = 'Action';
+            });
+
+            container.querySelectorAll('.song-row[data-song-id]').forEach(row => {
+                const oldPill = row.querySelector('.row-action-pill');
+                const oldHeart = row.querySelector('.song-row-heart');
+                if (!oldPill && !oldHeart) return;
+
+                let editButton = row.querySelector('.admin-row-edit-btn');
+                const legacyEdit = oldPill ? oldPill.querySelector('[title="Edit"]') : null;
+                if (!editButton) {
+                    editButton = document.createElement('button');
+                    editButton.type = 'button';
+                    editButton.className = 'admin-row-edit-btn';
+                    editButton.title = 'Edit';
+                    editButton.setAttribute('aria-label', 'Edit song');
+                    editButton.innerHTML = legacyEdit ? legacyEdit.innerHTML : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>';
+                    editButton.onclick = function(event) {
+                        event.stopPropagation();
+                        window.location.replace('/admin/music/song/' + row.dataset.songId + '/change/?next=' + encodeURIComponent(window.location.pathname + window.location.search));
+                    };
+                }
+
+                if (oldPill) {
+                    oldPill.replaceWith(document.createElement('div'));
+                }
+                const actionCell = document.createElement('div');
+                actionCell.style.cssText = 'text-align:center;display:flex;align-items:center;justify-content:center;';
+                actionCell.appendChild(editButton);
+                if (oldHeart) oldHeart.replaceWith(actionCell);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', normalizeAdminDetailActions);
+        setTimeout(normalizeAdminDetailActions, 0);
+
+        if (!window.paginationJumpBound) {
+            window.paginationJumpBound = true;
+            document.addEventListener('keydown', function(e) {
+                const input = e.target.closest && e.target.closest('.page-jump-input');
+                if (!input || e.key !== 'Enter') return;
+
+                e.preventDefault();
+                const total = parseInt(input.dataset.totalPages || input.max || '1', 10) || 1;
+                let page = parseInt(input.value, 10);
+                if (!Number.isFinite(page)) page = 1;
+                page = Math.max(1, Math.min(total, page));
+                input.value = page;
+
+                const param = input.dataset.pageParam || 'p';
+                const zeroIndexed = input.dataset.zeroIndexed === 'true';
+                const url = new URL(window.location.href);
+                url.searchParams.set(param, String(zeroIndexed ? page - 1 : page));
+                window.location.href = url.pathname + url.search;
+            });
+        }
+    </script>
+</body>
+
+</html>

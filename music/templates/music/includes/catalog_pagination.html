@@ -1,0 +1,69 @@
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="pagination-wrapper">
+    <div class="pagination-container" style="margin-top: 0;">
+        <div class="pagination-glass">
+            {% if page_obj.has_previous %}
+            <a href="{{ catalog_base_url }}?tab={{ active_tab }}&sort={{ current_sort }}&genre={{ current_genre|urlencode }}&q={{ q|urlencode }}&page_size={{ catalog_page_size }}&page=1" class="page-link-btn" title="First Page">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline>
+                </svg>
+            </a>
+            {% else %}
+            <div class="page-link-btn disabled">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline>
+                </svg>
+            </div>
+            {% endif %}
+
+            {% if page_obj.has_previous %}
+            <a href="{{ catalog_base_url }}?tab={{ active_tab }}&sort={{ current_sort }}&genre={{ current_genre|urlencode }}&q={{ q|urlencode }}&page_size={{ catalog_page_size }}&page={{ page_obj.previous_page_number }}" class="page-link-btn" title="Previous Page">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
+            {% else %}
+            <div class="page-link-btn disabled">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </div>
+            {% endif %}
+
+            <div class="page-info-box">
+                <input class="page-jump-input" type="number" min="1" max="{{ page_obj.paginator.num_pages }}" value="{{ page_obj.number }}" aria-label="Page number" data-page-param="page" data-total-pages="{{ page_obj.paginator.num_pages }}">
+                <span style="opacity: 0.2; margin: 0 4px;">/</span>
+                <span class="page-info-total">{{ page_obj.paginator.num_pages|stringformat:"02d" }}</span>
+            </div>
+
+            {% if page_obj.has_next %}
+            <a href="{{ catalog_base_url }}?tab={{ active_tab }}&sort={{ current_sort }}&genre={{ current_genre|urlencode }}&q={{ q|urlencode }}&page_size={{ catalog_page_size }}&page={{ page_obj.next_page_number }}" class="page-link-btn" title="Next Page">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </a>
+            {% else %}
+            <div class="page-link-btn disabled">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </div>
+            {% endif %}
+
+            {% if page_obj.has_next %}
+            <a href="{{ catalog_base_url }}?tab={{ active_tab }}&sort={{ current_sort }}&genre={{ current_genre|urlencode }}&q={{ q|urlencode }}&page_size={{ catalog_page_size }}&page={{ page_obj.paginator.num_pages }}" class="page-link-btn" title="Last Page">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="6 17 11 12 6 7"></polyline><polyline points="13 17 18 12 13 7"></polyline>
+                </svg>
+            </a>
+            {% else %}
+            <div class="page-link-btn disabled">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="6 17 11 12 6 7"></polyline><polyline points="13 17 18 12 13 7"></polyline>
+                </svg>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}

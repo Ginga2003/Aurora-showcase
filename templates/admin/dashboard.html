@@ -1,0 +1,530 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block title %}Aurora Admin Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+    .admin-dashboard {
+        max-width: 1480px;
+        margin: 0 auto;
+        color: #fff;
+    }
+
+    .dashboard-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+        gap: 18px;
+        align-items: stretch;
+        margin-bottom: 22px;
+    }
+
+    .dashboard-panel,
+    .metric-card,
+    .dashboard-table-panel {
+        background: rgba(0, 0, 0, 0.46);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.28);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+    }
+
+    .dashboard-panel {
+        padding: 22px;
+    }
+
+    .dashboard-kicker {
+        color: var(--jewel-red-hover);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+
+    .dashboard-title {
+        font-size: 30px;
+        line-height: 1.2;
+        font-weight: 800;
+        margin: 0 0 8px 0;
+    }
+
+    .dashboard-subtitle {
+        color: rgba(255, 255, 255, 0.68);
+        font-size: 14px;
+        line-height: 1.6;
+        max-width: 760px;
+    }
+
+    .dashboard-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .dashboard-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        padding: 8px 14px;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 45, 75, 0.45);
+        background: rgba(255, 45, 75, 0.13);
+        font-weight: 700;
+        font-size: 13px;
+        transition: all 0.2s ease;
+    }
+
+    .dashboard-action:hover {
+        color: #fff;
+        text-decoration: none;
+        border-color: rgba(255, 90, 110, 0.85);
+        background: rgba(255, 45, 75, 0.25);
+    }
+
+    .dashboard-note {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 10px;
+        min-height: 100%;
+    }
+
+    .dashboard-note-label {
+        color: rgba(255, 255, 255, 0.54);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .dashboard-note-value {
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .dashboard-note-copy {
+        color: rgba(255, 255, 255, 0.66);
+        font-size: 13px;
+        line-height: 1.55;
+    }
+
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 22px;
+    }
+
+    .metric-card {
+        padding: 16px;
+        min-height: 112px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .metric-label {
+        color: rgba(255, 255, 255, 0.62);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .metric-value {
+        font-size: 32px;
+        line-height: 1;
+        font-weight: 800;
+        margin: 12px 0 8px;
+    }
+
+    .metric-foot {
+        color: rgba(255, 255, 255, 0.58);
+        font-size: 12px;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 18px;
+        margin-bottom: 18px;
+    }
+
+    .dashboard-table-panel {
+        padding: 18px;
+        min-width: 0;
+    }
+
+    .panel-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+
+    .panel-title {
+        font-size: 18px;
+        font-weight: 800;
+        margin: 0;
+    }
+
+    .panel-caption {
+        color: rgba(255, 255, 255, 0.52);
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .analytics-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .analytics-row {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        min-height: 56px;
+        padding: 9px 10px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px solid rgba(255, 255, 255, 0.055);
+    }
+
+    .analytics-rank,
+    .activity-kind {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        background: rgba(255, 45, 75, 0.18);
+        border: 1px solid rgba(255, 45, 75, 0.28);
+        font-weight: 800;
+        font-size: 12px;
+    }
+
+    .analytics-title {
+        color: #fff;
+        font-size: 14px;
+        font-weight: 800;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .analytics-meta {
+        color: rgba(255, 255, 255, 0.55);
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-top: 3px;
+    }
+
+    .analytics-value {
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 13px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .bar-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .bar-row {
+        display: grid;
+        grid-template-columns: minmax(110px, 0.28fr) minmax(0, 1fr) 46px;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .bar-label,
+    .bar-value {
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 13px;
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .bar-track {
+        height: 9px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+    }
+
+    .bar-fill {
+        height: 100%;
+        min-width: 3px;
+        border-radius: inherit;
+        background: linear-gradient(90deg, rgba(255, 45, 75, 0.86), rgba(255, 208, 0, 0.78));
+    }
+
+    .activity-row {
+        display: grid;
+        grid-template-columns: 76px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        min-height: 52px;
+        padding: 9px 10px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px solid rgba(255, 255, 255, 0.055);
+    }
+
+    .activity-kind {
+        width: auto;
+        padding: 0 9px;
+        justify-self: start;
+    }
+
+    .empty-state {
+        padding: 18px;
+        border-radius: 8px;
+        border: 1px dashed rgba(255, 255, 255, 0.18);
+        color: rgba(255, 255, 255, 0.62);
+        line-height: 1.55;
+        font-size: 13px;
+        background: rgba(255, 255, 255, 0.035);
+    }
+
+    @media (max-width: 1180px) {
+        .metric-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .dashboard-hero,
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .metric-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-title {
+            font-size: 24px;
+        }
+
+        .analytics-row,
+        .activity-row,
+        .bar-row {
+            grid-template-columns: 1fr;
+        }
+
+        .analytics-value,
+        .panel-caption,
+        .bar-value {
+            white-space: normal;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard page-entrance">
+    <section class="dashboard-hero">
+        <div class="dashboard-panel">
+            <div class="dashboard-kicker">Aurora Admin Analytics</div>
+            <h2 class="dashboard-title">Music catalog and user activity overview</h2>
+            <p class="dashboard-subtitle">
+                A compact operational dashboard for recent catalog updates, active listeners, top-played songs, content mix, and system activity. In the showcase copy, this page uses only demo or local database data.
+            </p>
+            <div class="dashboard-actions">
+                <a class="dashboard-action" href="{{ song_changelist_url }}">Manage Songs</a>
+                <a class="dashboard-action" href="{{ user_changelist_url }}">Manage Users</a>
+                <a class="dashboard-action" href="{{ playlist_changelist_url }}">Review Playlists</a>
+            </div>
+        </div>
+        <div class="dashboard-panel dashboard-note">
+            <div>
+                <div class="dashboard-note-label">Last refreshed</div>
+                <div class="dashboard-note-value">{{ dashboard_updated_at }}</div>
+            </div>
+            <p class="dashboard-note-copy">
+                Recent uploads and the 7-day trend use the song upload timestamp, while listening activity is calculated from play history events.
+            </p>
+        </div>
+    </section>
+
+    <section class="metric-grid" aria-label="Dashboard metrics">
+        <div class="metric-card">
+            <div class="metric-label">Total Songs</div>
+            <div class="metric-value">{{ total_songs }}</div>
+            <div class="metric-foot">{{ recent_upload_count }} uploads in the last 7 days</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Active Users</div>
+            <div class="metric-value">{{ active_users }}</div>
+            <div class="metric-foot">{{ total_users }} registered profiles</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Play Events</div>
+            <div class="metric-value">{{ total_plays }}</div>
+            <div class="metric-foot">{{ recent_play_count }} plays in the last 7 days</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Community</div>
+            <div class="metric-value">{{ total_comments }}</div>
+            <div class="metric-foot">{{ total_playlists }} playlists, {{ total_feedbacks }} feedback items</div>
+        </div>
+    </section>
+
+    <section class="dashboard-grid">
+        <div class="dashboard-table-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Recent Uploads</h3>
+                <span class="panel-caption">Newest catalog entries</span>
+            </div>
+            <div class="analytics-list">
+                {% for song in recent_songs %}
+                <div class="analytics-row">
+                    <div class="analytics-rank">{{ forloop.counter }}</div>
+                    <div>
+                        <div class="analytics-title">{{ song.name }}</div>
+                        <div class="analytics-meta">{{ song.album|default:"Unknown Album" }} · {{ song.arrangement|default:"Unknown Artist" }}</div>
+                    </div>
+                    <div class="analytics-value">{{ song.created_at|date:"M d, H:i" }}</div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    No songs yet. Run the showcase seed command with sample content to preview catalog analytics.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="dashboard-table-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Most Listened Songs</h3>
+                <span class="panel-caption">Ranked by views</span>
+            </div>
+            <div class="analytics-list">
+                {% for song in top_songs %}
+                <div class="analytics-row">
+                    <div class="analytics-rank">{{ forloop.counter }}</div>
+                    <div>
+                        <div class="analytics-title">{{ song.name }}</div>
+                        <div class="analytics-meta">{{ song.song_type|default:"Unclassified" }}</div>
+                    </div>
+                    <div class="analytics-value">{{ song.views }} views</div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    Listening data will appear here after songs are added and played.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="dashboard-grid">
+        <div class="dashboard-table-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Recently Active Users</h3>
+                <span class="panel-caption">Based on play history</span>
+            </div>
+            <div class="analytics-list">
+                {% for row in active_user_rows %}
+                <div class="analytics-row">
+                    <div class="analytics-rank">{{ forloop.counter }}</div>
+                    <div>
+                        <div class="analytics-title">{{ row.user__username|default:"Unknown User" }}</div>
+                        <div class="analytics-meta">{{ row.user__email|default:"No email" }}</div>
+                    </div>
+                    <div class="analytics-value">{{ row.play_count }} plays · {{ row.last_seen_label }}</div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    No users are available yet.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="dashboard-table-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Song Type Mix</h3>
+                <span class="panel-caption">Top categories</span>
+            </div>
+            {% if type_breakdown %}
+            <div class="bar-list">
+                {% for item in type_breakdown %}
+                <div class="bar-row">
+                    <div class="bar-label">{{ item.name }}</div>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: {{ item.percent }}%;"></div>
+                    </div>
+                    <div class="bar-value">{{ item.count }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                Type distribution will appear once songs have been added.
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="dashboard-grid">
+        <div class="dashboard-table-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">7-Day Catalog Trend</h3>
+                <span class="panel-caption">By upload timestamp</span>
+            </div>
+            <div class="bar-list">
+                {% for item in catalog_trend %}
+                <div class="bar-row">
+                    <div class="bar-label">{{ item.label }}</div>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: {{ item.percent }}%;"></div>
+                    </div>
+                    <div class="bar-value">{{ item.count }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="dashboard-table-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Recent Activity</h3>
+                <span class="panel-caption">Plays, comments, playlists</span>
+            </div>
+            <div class="analytics-list">
+                {% for row in recent_activity %}
+                <div class="activity-row">
+                    <div class="activity-kind">{{ row.kind }}</div>
+                    <div>
+                        <div class="analytics-title">{{ row.title }}</div>
+                        <div class="analytics-meta">{{ row.detail }}</div>
+                    </div>
+                    <div class="analytics-value">{{ row.time_label }}</div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    Activity events will appear after users play songs, create playlists, or add comments.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

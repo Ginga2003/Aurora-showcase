@@ -1,0 +1,596 @@
+{% extends 'music/base.html' %}
+{% load static %}
+{% load music_tags %}
+
+{% block title %}Comments - {{ song.name }}{% endblock %}
+
+{% block content %}
+<style>
+    .comments-page-container {
+        padding: 25px 35px;
+        color: #fff;
+        max-width: 1400px;
+        margin: 0;
+    }
+
+
+
+    /* Song Header */
+    .comments-song-header {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 10px;
+    }
+
+    .song-header-cover {
+        width: 80px;
+        height: 80px;
+        border-radius: 8px;
+        object-fit: cover;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    }
+
+    .song-header-info h1 {
+        font-size: 22px;
+        font-weight: 800;
+        margin: 0 0 5px 0;
+        letter-spacing: -0.5px;
+    }
+
+    .song-header-meta {
+        font-size: 0.9em;
+        color: rgba(255, 255, 255, 0.6);
+        display: flex;
+        gap: 20px;
+        margin-top: 5px;
+    }
+
+    .song-header-meta b {
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .song-header-meta a:hover b {
+        color: var(--aurora-green) !important;
+    }
+
+    .song-header-meta .metadata-unknown {
+        opacity: 0.6;
+    }
+
+    .song-header-meta .metadata-unknown:hover {
+        opacity: 0.9 !important;
+    }
+
+    /* Section Titles */
+    .section-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.9);
+        margin: 40px 0 20px 0;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+    }
+
+    .section-title .count {
+        font-size: 11px;
+        opacity: 0.6;
+        font-weight: 500;
+        margin-left: 2px;
+    }
+
+    /* Input Area */
+    .comment-input-wrapper {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 15px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+    }
+
+    .comment-input-wrapper:focus-within {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--aurora-green);
+        box-shadow: 0 0 20px rgba(0, 199, 138, 0.1);
+    }
+
+    #comment-textarea {
+        width: 100%;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: #eee;
+        font-size: 15px;
+        resize: none;
+        min-height: 80px;
+        line-height: 1.6;
+    }
+
+    #comment-textarea::placeholder {
+        color: rgba(255, 255, 255, 0.75);
+        transition: color 0.3s ease;
+    }
+
+    #comment-textarea:focus::placeholder {
+        color: rgba(255, 255, 255, 0.25);
+    }
+
+    .input-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+    }
+
+    .char-counter {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.45);
+    }
+
+    .input-actions {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .post-btn {
+        background: var(--aurora-bg-alpha);
+        color: var(--aurora-green);
+        border: 1px solid var(--aurora-border-alpha);
+        padding: 6px 22px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        backdrop-filter: blur(5px);
+    }
+
+    .post-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        background: var(--aurora-bg-alpha-hover);
+        border-color: var(--aurora-green);
+        color: var(--aurora-green-hover);
+        box-shadow: 0 5px 15px var(--aurora-shadow);
+    }
+
+    .post-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    /* Reply Badge */
+    .reply-cancel-badge {
+        display: none; /* Hidden by default */
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--aurora-green);
+        background: rgba(0, 199, 138, 0.1);
+        padding: 4px 10px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        width: fit-content;
+    }
+
+    .reply-cancel-badge svg {
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .reply-cancel-badge svg:hover {
+        transform: rotate(90deg);
+        color: #ff4444;
+    }
+
+    /* Comment List */
+    .comment-item {
+        display: flex;
+        gap: 15px;
+        padding: 15px 20px;
+        border-radius: 12px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        animation: fadeIn 0.5s ease backwards;
+        cursor: default;
+    }
+
+    .comment-item:hover {
+        background: rgba(255, 255, 255, 0.08); /* Brighter hover background */
+        border-color: transparent;
+    }
+
+    .user-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: #222;
+        flex-shrink: 0;
+        margin-top: 5px;
+    }
+
+    .comment-main {
+        flex: 1;
+        overflow: hidden; /* Prevent content overflow */
+    }
+
+    .comment-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 2px; /* Tighter gap to content */
+    }
+
+    .comment-user {
+        font-size: 14px;
+        font-weight: 700;
+        color: #00C78A;
+        cursor: default; /* Remove pointer */
+    }
+
+    /* No hover for user anymore */
+    .comment-user:hover {
+        opacity: 1;
+    }
+
+    .comment-content {
+        font-size: 14px;
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.95);
+        margin-bottom: 6px; /* Single source of truth for content-footer gap */
+        word-break: break-word;
+    }
+
+    /* Quoted Reply Content */
+    .quoted-reply {
+        background: rgba(255, 255, 255, 0.08); /* Increased opacity */
+        border-left: 2px solid var(--aurora-green);
+        padding: 8px 12px;
+        margin: 10px 0;
+        border-radius: 0 6px 6px 0;
+        font-size: 13px;
+    }
+
+    .quoted-user {
+        color: #00C78A;
+        font-weight: 600;
+        display: inline;
+        margin-right: 5px;
+    }
+
+    .quoted-text {
+        color: rgba(255, 255, 255, 0.95);
+    }
+
+    .comment-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center; /* Both date and icons at same vertical center */
+        margin-top: 0;
+        padding: 0;
+    }
+
+    .comment-time {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.85);
+        line-height: 1;
+    }
+
+    .comment-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px; /* Uniform gap between all 3 buttons */
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .c-action-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        color: rgba(255, 255, 255, 0.95);
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        min-width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+    }
+
+    .c-action-btn:hover {
+        color: rgba(255, 255, 255, 1);
+        transform: scale(1.15);
+    }
+
+    .c-action-btn[title="Reply"]:hover {
+        color: #00C78A !important;
+        transform: scale(1.2);
+        filter: drop-shadow(0 0 5px rgba(0, 199, 138, 0.6));
+    }
+
+    .c-action-btn.like-btn:hover,
+    .c-action-btn.like-btn.is-liked {
+        color: #ff4444;
+    }
+
+    .c-action-btn.like-btn.is-liked svg {
+        fill: #ff4444;
+    }
+
+    .c-action-btn.like-btn svg {
+        position: relative;
+        top: 0px; 
+    }
+
+    .c-action-btn.delete-btn svg {
+        position: relative;
+        top: 0.5px; /* Align with heart icon */
+    }
+
+    .c-action-btn.delete-btn:hover {
+        color: #ff4444;
+    }
+
+    .delete-btn:hover {
+        color: #ff4444 !important;
+    }
+
+    /* VIP Badge Mockup (Match screenshot) */
+    .vip-badge {
+        background: linear-gradient(90deg, #ffcc33, #ff9900);
+        color: #000;
+        font-size: 9px;
+        font-weight: 900;
+        padding: 1px 4px;
+        border-radius: 3px;
+        text-transform: uppercase;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<div class="comments-page-container page-entrance">
+    <!-- Song Info -->
+    <div class="comments-song-header">
+        <img src="{{ song.cover|bust_url }}" class="song-header-cover" onerror="this.src='/media/covers/default_cover.jpg'">
+        <div class="song-header-info">
+            <h2 style="font-size: 24px; font-weight: 800; margin: 0; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.2);">{{ song.name }}</h2>
+            <div class="song-header-meta" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 15px; font-size: 14px;">
+                <span style="color: rgba(255, 255, 255, 0.6);">Artist: 
+                    {% if song.arrangement and song.arrangement != "Unknown Artist" %}
+                        {% for artist_name in song.arrangement|split_artists %}
+                            {% if request.user.is_authenticated %}
+                                <a href="{% url 'music:artist_detail_frontend' artist_name %}" style="color: inherit; text-decoration: none; font-weight: 600; transition: color 0.2s;" onmouseover="this.style.color='var(--aurora-green)'" onmouseout="this.style.color='inherit'">{{ artist_name }}</a>
+                            {% else %}
+                                <span style="font-weight: 600;">{{ artist_name }}</span>
+                            {% endif %}{% if not forloop.last %} / {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <b class="metadata-unknown">Unknown Artist</b>
+                    {% endif %}
+                </span>
+                <span style="color: rgba(255, 255, 255, 0.3);">|</span>
+                <span style="color: rgba(255, 255, 255, 0.6);">Album: 
+                    {% if song.album and song.album != "Unknown Album" and request.user.is_authenticated %}
+                        <a href="{% url 'music:album_detail_frontend' song.album %}" style="color: inherit; text-decoration: none; font-weight: 600; transition: color 0.2s;" onmouseover="this.style.color='var(--aurora-green)'" onmouseout="this.style.color='inherit'">{{ song.album }}</a>
+                    {% elif song.album and song.album != "Unknown Album" %}
+                        <span style="font-weight: 600;">{{ song.album }}</span>
+                    {% else %}
+                        <b class="metadata-unknown">Unknown Album</b>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-title">
+        All Comments <span class="count">{{ total_count }}</span>
+    </div>
+
+    <!-- Input Area -->
+    <div class="comment-input-wrapper">
+        <div id="reply-to-badge" class="reply-cancel-badge">
+            <span id="reply-username">Replying to demo:</span>
+            <svg onclick="cancelReply()" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </div>
+        <textarea id="comment-textarea" placeholder="Share your thoughts..." maxlength="1000" oninput="updateCharCount(this)"></textarea>
+        <div class="input-footer">
+            <div class="char-counter" id="char-counter">1000</div>
+            <div class="input-actions">
+                <button class="post-btn" id="submit-comment-btn" onclick="postComment()" disabled>Post</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hot Comments Section -->
+    {% if hot_comments %}
+    <div class="section-title">Hot Comments <span class="count">{{ hot_comments|length }}</span></div>
+    <div class="hot-comments-list">
+        {% for comment in hot_comments %}
+            {% include 'music/includes/comment_item.html' with comment=comment is_hot=True %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Latest Comments Section -->
+    <div class="section-title">Latest Comments <span class="count">{{ total_count }}</span></div>
+    <div class="latest-comments-list" id="latest-comments-list">
+        {% for comment in latest_comments %}
+            {% include 'music/includes/comment_item.html' with comment=comment %}
+        {% endfor %}
+        {% if not latest_comments %}
+        <div class="empty-comment-state" style="text-align: center; padding: 100px 20px; color: rgba(255, 255, 255, 0.6); text-shadow: 0 2px 10px rgba(0,0,0,0.5);">
+            <div style="margin-bottom: 25px; opacity: 0.8;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" fill="var(--aurora-green)" class="bi bi-chat-dots-fill" viewBox="0 0 16 16">
+                    <path d="M16 8c0 3.866-3.582 7-8 7a9.06 9.06 0 0 1-2.347-.306c-.584.296-1.925.864-4.181 1.234-.2.032-.352-.176-.273-.362.354-.836.674-1.95.77-2.966C.744 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7zM5 8a1 1 0 1 0-2 0 1 1 0 0 0 2 0zm4 0a1 1 0 1 0-2 0 1 1 0 0 0 2 0zm3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+                </svg>
+            </div>
+            <h3 style="font-weight: 700; letter-spacing: 0.5px;">No comments yet. Be the first to share your thoughts!</h3>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    let currentReplyId = null;
+
+    function updateCharCount(el) {
+        const remaining = 1000 - el.value.length;
+        document.getElementById('char-counter').innerText = remaining;
+        document.getElementById('submit-comment-btn').disabled = el.value.trim().length === 0;
+    }
+
+    function initiateReply(commentId, username) {
+        currentReplyId = commentId;
+        const badge = document.getElementById('reply-to-badge');
+        const userSpan = document.getElementById('reply-username');
+        const textarea = document.getElementById('comment-textarea');
+        
+        userSpan.innerText = `Replying to ${username}:`;
+        badge.style.display = 'flex';
+        textarea.focus();
+        
+        // Scroll to input if needed
+        document.querySelector('.comment-input-wrapper').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function cancelReply() {
+        currentReplyId = null;
+        document.getElementById('reply-to-badge').style.display = 'none';
+    }
+
+    function postComment() {
+        const content = document.getElementById('comment-textarea').value.trim();
+        if (!content) return;
+
+        const btn = document.getElementById('submit-comment-btn');
+        btn.disabled = true;
+        btn.innerText = 'Posting...';
+
+        const fd = new FormData();
+        fd.append('song_id', '{{ song.id }}');
+        fd.append('content', content);
+        if (currentReplyId) {
+            fd.append('parent_id', currentReplyId);
+        }
+        fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch('/api/post-comment/', {
+            method: 'POST',
+            body: fd
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showHubToast('Posted successfully');
+                document.getElementById('comment-textarea').value = '';
+                cancelReply();
+                updateCharCount(document.getElementById('comment-textarea'));
+                
+                // Sync player UI
+                if (window.syncPlayerCommentCount) {
+                    window.syncPlayerCommentCount('{{ song.id }}');
+                }
+                
+                // Refresh the page or the comment block via SPA
+                if (window.navigatePage) {
+                    window.navigatePage(window.location.href, false);
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                showHubToast('Failed to post: ' + data.error);
+                btn.disabled = false;
+                btn.innerText = 'Post';
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showHubToast('Network error');
+            btn.disabled = false;
+            btn.innerText = 'Post';
+        });
+    }
+
+    function toggleCommentLike(commentId, el) {
+        if ('{{ request.user.is_authenticated }}' !== 'True') {
+             showHubToast('Please login first');
+             return;
+        }
+        const fd = new FormData();
+        fd.append('comment_id', commentId);
+        fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch('/api/toggle-comment-like/', {
+            method: 'POST',
+            body: fd
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // Find all like buttons for this comment ID on the page (Hot vs Latest)
+                const allButtons = document.querySelectorAll(`.like-btn[data-comment-id="${commentId}"]`);
+                allButtons.forEach(btn => {
+                    const countSpan = btn.querySelector('.likes-count');
+                    if (countSpan) countSpan.innerText = data.likes_count;
+                    if (data.is_liked) {
+                        btn.classList.add('is-liked');
+                    } else {
+                        btn.classList.remove('is-liked');
+                    }
+                });
+            } else {
+                 showHubToast(data.error);
+            }
+        });
+    }
+
+    function deleteComment(commentId) {
+        showHubConfirm('Delete Comment', 'Are you sure you want to delete this comment?', () => {
+            const fd = new FormData();
+            fd.append('comment_id', commentId);
+            fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch('/api/delete-comment/', {
+                method: 'POST',
+                body: fd
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showHubToast('Deleted');
+                    
+                    // Sync player UI
+                    if (window.syncPlayerCommentCount) {
+                        window.syncPlayerCommentCount('{{ song.id }}');
+                    }
+                    
+                    if (window.navigatePage) {
+                        window.navigatePage(window.location.href, false);
+                    } else {
+                        window.location.reload();
+                    }
+                }
+            });
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,221 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block content_title %}<h1 style="color:red; background:white; padding:10px; display:inline-block; border-radius:10px;">AURORA TEMPLATE ACTIVE</h1>{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* HYPER-AGGRESSIVE OVERRIDES FOR DJANGO ADMIN */
+    
+    #content {
+        background: transparent !important;
+        padding: 20px 40px !important;
+    }
+
+    /* Remove the default breadcrumbs bar background if it exists */
+    .breadcrumbs {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-radius: 8px !important;
+        padding: 10px 15px !important;
+        color: rgba(255, 255, 255, 0.5) !important;
+        margin-bottom: 20px !important;
+    }
+    .breadcrumbs a { color: var(--jewel-red) !important; }
+
+    /* The Main Form Container */
+    .module {
+        background: rgba(0, 0, 0, 0.45) !important;
+        backdrop-filter: blur(40px) !important;
+        -webkit-backdrop-filter: blur(40px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 20px !important;
+        padding: 40px !important;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5) !important;
+        color: #fff !important;
+    }
+
+    .module h2 {
+        background: transparent !important;
+        color: var(--jewel-red) !important;
+        font-size: 1.4rem !important;
+        font-weight: 800 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 2px !important;
+        border-bottom: 2px solid rgba(160, 20, 35, 0.3) !important;
+        padding-bottom: 20px !important;
+        margin-bottom: 30px !important;
+    }
+
+    /* Row Alignment Fixes */
+    .form-row {
+        padding: 25px 0 !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+        overflow: hidden !important;
+    }
+
+    /* Labels - Stronger selection to override admin/css/forms.css */
+    .aligned label {
+        width: 180px !important;
+        padding: 0 !important;
+        color: rgba(255, 255, 255, 0.6) !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+    }
+
+    /* Input Controls - Targeting Django specific classes */
+    .vTextField, .vURLField, .vLargeTextField, .vIntegerField, .vTimeField, .vDateField,
+    input[type="text"], input[type="number"], select, textarea {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        border-radius: 10px !important;
+        padding: 12px 18px !important;
+        color: #fff !important;
+        font-size: 15px !important;
+        box-sizing: border-box !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    .vLargeTextField, textarea {
+        min-height: 120px !important;
+    }
+
+    input:focus, select:focus, textarea:focus {
+        border-color: var(--jewel-red) !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 0 15px rgba(160, 20, 35, 0.3) !important;
+        outline: none !important;
+    }
+
+    /* Select Multiple / Filter Vertical Fixes */
+    .selector-available, .selector-chosen {
+        width: 45% !important;
+    }
+    .selector select {
+        width: 100% !important;
+        height: 200px !important;
+    }
+    .selector-add, .selector-remove {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border-radius: 50% !important;
+        margin: 5px !important;
+    }
+
+    /* File Input Styling */
+    .file-upload {
+        color: rgba(255, 255, 255, 0.4) !important;
+        font-size: 13px !important;
+    }
+    .file-upload a {
+        color: var(--jewel-red) !important;
+        font-weight: 700 !important;
+    }
+
+    /* Help Text & Error handling */
+    .help, .help-block {
+        color: rgba(255, 255, 255, 0.3) !important;
+        margin-top: 8px !important;
+        font-style: italic !important;
+    }
+    .errorlist li {
+        color: #ff4444 !important;
+        font-weight: 700 !important;
+        list-style: none !important;
+    }
+
+    /* Bottom Action Bar */
+    .submit-row {
+        position: sticky !important;
+        bottom: 0 !important;
+        z-index: 100 !important;
+        background: rgba(20, 20, 20, 0.9) !important;
+        backdrop-filter: blur(25px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 15px !important;
+        padding: 20px 30px !important;
+        margin: 40px 0 20px 0 !important;
+        display: flex !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        gap: 20px !important;
+        box-shadow: 0 -10px 30px rgba(0,0,0,0.4) !important;
+    }
+
+    .submit-row input, .submit-row a {
+        height: auto !important;
+        line-height: normal !important;
+        padding: 12px 35px !important;
+        border-radius: 30px !important;
+        font-weight: 800 !important;
+        font-size: 14px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1.5px !important;
+        cursor: pointer !important;
+        border: none !important;
+        transition: all 0.3s ease !important;
+    }
+
+    /* Save Button - Glow Red */
+    .submit-row input[name="_save"] {
+        background: var(--aurora-bg-alpha, rgba(160, 20, 35, 0.15)) !important;
+        color: var(--jewel-red) !important;
+        border: 1px solid var(--aurora-border-alpha, rgba(160, 20, 35, 0.3)) !important;
+    }
+    .submit-row input[name="_save"]:hover {
+        background: var(--jewel-red) !important;
+        color: #fff !important;
+        box-shadow: 0 0 25px rgba(160, 20, 35, 0.5) !important;
+        transform: translateY(-3px) !important;
+    }
+
+    /* Other Save Buttons */
+    .submit-row input[type="submit"]:not([name="_save"]) {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: #fff !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    .submit-row input[type="submit"]:not([name="_save"]):hover {
+        background: rgba(255, 255, 255, 0.12) !important;
+        border-color: rgba(255, 255, 255, 0.3) !important;
+    }
+
+    /* Delete Link - Glow Red */
+    .submit-row a.deletelink {
+        background: rgba(255, 68, 68, 0.1) !important;
+        color: #ff4444 !important;
+        border: 1px solid rgba(255, 68, 68, 0.2) !important;
+        margin-right: auto !important; /* Push delete to left */
+    }
+    .submit-row a.deletelink:hover {
+        background: #ff4444 !important;
+        color: #fff !important;
+        box-shadow: 0 0 25px rgba(255, 68, 68, 0.5) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-entrance">
+    <div style="margin-bottom: 30px;">
+        <h1 style="font-size: 28px; font-weight: 700; color: #fff; margin: 0;">
+            {% if add %}Add Song{% else %}Edit: {{ original.name }}{% endif %}
+        </h1>
+    </div>
+    
+    <div id="content-main" style="max-width: 1200px;">
+        {{ block.super }}
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Enforce dark mode for any child containers that might have missed the global style
+        document.querySelectorAll('.module').forEach(m => {
+            m.classList.add('premium-glass');
+        });
+    });
+</script>
+{% endblock %}

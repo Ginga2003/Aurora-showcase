@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+
+.venv/
+venv/
+
+*.sqlite3
+*.log
+*.bak*
+
+.idea/
+.claude/
+
+.env
+/staticfiles/
+
+# Runtime media uploads. Keep only bundled placeholder assets.
+/media/avatars/*
+!/media/avatars/default.jpeg
+/media/covers/*
+!/media/covers/default_cover.jpg
+/media/lyrics/*
+/media/playlists/*
+!/media/playlists/default_playlist.png
+!/media/playlists/Favourite.png
+/media/songs/*

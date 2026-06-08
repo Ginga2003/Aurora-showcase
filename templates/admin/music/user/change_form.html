@@ -1,0 +1,349 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extra_head %}
+{{ block.super }}
+<style>
+    :root {
+        --jewel-red: rgba(255, 45, 75, 0.7);
+        --jewel-red-dark: rgba(160, 20, 35, 0.55);
+        --jewel-red-hover: rgba(255, 90, 110, 0.95);
+        --aurora-bg-alpha: rgba(255, 45, 75, 0.1);
+        --aurora-bg-alpha-hover: rgba(255, 45, 75, 0.2);
+        --aurora-border-alpha: rgba(255, 45, 75, 0.4);
+        --aurora-shadow: rgba(255, 45, 75, 0.2);
+    }
+
+    body {
+        background: url('/static/music/images/showcase_admin_bg.jpg') no-repeat center center fixed;
+        background-size: cover;
+    }
+
+    #content {
+        padding: 0 !important;
+        position: relative;
+    }
+
+    .user-edit-container {
+        padding: 30px;
+        display: flex;
+        gap: 40px;
+        align-items: flex-start;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .edit-visual-side {
+        flex: 0 0 220px;
+    }
+
+    .edit-avatar-wrapper {
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 2px solid rgba(255,255,255,0.15);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        position: relative;
+        cursor: pointer;
+    }
+
+    .edit-avatar-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+
+    .edit-avatar-wrapper:hover img {
+        transform: scale(1.05);
+    }
+
+    .edit-cover-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.4);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+        color: #fff;
+        border-radius: 50%;
+    }
+
+    .edit-avatar-wrapper:hover .edit-cover-overlay {
+        opacity: 1;
+    }
+
+    .edit-form-side {
+        flex: 1;
+        min-width: 0;
+        max-width: 580px;
+    }
+
+    .edit-section-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 25px;
+        letter-spacing: 1px;
+    }
+
+    .custom-field-row {
+        margin-bottom: 20px;
+    }
+
+    .custom-field-row label {
+        display: block;
+        color: rgba(255, 255, 255, 0.5);
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    #id_username, #id_email, #id_password, #id_status,
+    #id_phone_number, #id_city, #id_birth {
+        width: 100%;
+        background: rgba(10, 8, 8, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 12px 15px;
+        color: #fff;
+        font-size: 15px;
+        outline: none;
+        transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        box-sizing: border-box;
+    }
+
+    #id_username:focus, #id_email:focus, #id_password:focus,
+    #id_status:focus, #id_phone_number:focus, #id_city:focus, #id_birth:focus {
+        border-color: var(--jewel-red);
+        background: rgba(10, 8, 8, 0.75);
+        box-shadow: 0 0 15px rgba(255, 45, 75, 0.4) !important;
+    }
+
+    #id_birth {
+        height: 47px;
+        box-sizing: border-box;
+        color-scheme: dark;
+    }
+
+    #change_form .module {
+        background: transparent !important;
+        border: none !important;
+        margin: 0 !important;
+    }
+
+    .breadcrumbs, .content-main h1 {
+        display: none !important;
+    }
+
+    /* Hide file input clutter */
+    .file-input-group br, .file-input-group a { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<form {% if has_file_field %}enctype="multipart/form-data" {% endif %}action="{{ form_url }}" method="post" id="{{ opts.model_name }}_form" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ return_url }}">
+    {% block form_top %}{% endblock %}
+
+    <div class="user-edit-container">
+
+        <!-- Left: Form Fields -->
+        <div class="edit-form-side">
+            <h2 class="edit-section-title">{% if original %}Edit User{% else %}Create User{% endif %}</h2>
+            {% if adminform.form.errors %}
+            <div style="margin-bottom: 20px; padding: 14px 16px; border-radius: 10px; background: rgba(255, 68, 68, 0.12); border: 1px solid rgba(255, 68, 68, 0.35); color: #ff8a8a; font-size: 13px; line-height: 1.5;">
+                {{ adminform.form.non_field_errors }}
+                {% for field in adminform.form %}
+                    {% if field.errors %}
+                        <div><strong>{{ field.label }}:</strong> {{ field.errors|striptags }}</div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="custom-field-row">
+                <label>Username</label>
+                {{ adminform.form.username }}
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="custom-field-row">
+                    <label>Email</label>
+                    {{ adminform.form.email }}
+                </div>
+                <div class="custom-field-row">
+                    <label>Status</label>
+                    {{ adminform.form.status }}
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="custom-field-row">
+                    <label>Phone</label>
+                    {{ adminform.form.phone_number }}
+                </div>
+                <div class="custom-field-row">
+                    <label>City</label>
+                    {{ adminform.form.city }}
+                </div>
+            </div>
+
+            <div class="custom-field-row">
+                <label>Date of Birth</label>
+                {{ adminform.form.birth }}
+            </div>
+
+            <!-- Buttons -->
+            <div style="display: flex; gap: 15px; margin-top: 30px;">
+                <a href="{{ return_url }}"
+                   onclick="window.location.replace(this.href); return false;"
+                   style="background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.1); padding: 12px 35px; border-radius: 25px; font-weight: 600; cursor: pointer; transition: all 0.3s; font-size: 15px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;"
+                   onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.color='#fff';"
+                   onmouseout="this.style.background='rgba(255,255,255,0.08)'; this.style.color='rgba(255,255,255,0.7)';">Cancel</a>
+                <input type="submit" value="{% if original %}Save{% else %}Create{% endif %}" name="_save"
+                       style="background: var(--aurora-bg-alpha); color: var(--jewel-red); border: 1px solid var(--aurora-border-alpha); padding: 12px 35px; border-radius: 25px; font-weight: 700; cursor: pointer; transition: all 0.3s; font-size: 15px;"
+                       onmouseover="this.style.background='var(--aurora-bg-alpha-hover)'; this.style.color='var(--jewel-red-hover)'; this.style.borderColor='var(--jewel-red)'; this.style.boxShadow='0 5px 15px var(--aurora-shadow)';"
+                       onmouseout="this.style.background='var(--aurora-bg-alpha)'; this.style.color='var(--jewel-red)'; this.style.borderColor='var(--aurora-border-alpha)'; this.style.boxShadow='none';">
+            </div>
+
+            <!-- Hidden Fields -->
+            <div style="display: none;">
+                {% for field in adminform.form.hidden_fields %}{{ field }}{% endfor %}
+            </div>
+        </div>
+
+        <!-- Right: Avatar -->
+        <div class="edit-visual-side">
+            <label style="margin-bottom: 15px; display: block;">Avatar</label>
+            <div class="edit-avatar-wrapper" onclick="document.getElementById('id_avatar').click()">
+                <img id="avatar-preview-img"
+                     src="{% if original and original.avatar %}{{ original.avatar.url }}{% if avatar_cache_buster %}?v={{ avatar_cache_buster }}{% endif %}{% else %}/media/avatars/default.jpeg{% endif %}"
+                     alt="Avatar"
+                     onerror="this.src='/media/avatars/default.jpeg'">
+                <div class="edit-cover-overlay">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M10.5 8.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+                        <path d="M2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4H2zm.5 2a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm9 2.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"/>
+                    </svg>
+                    <span style="font-size: 12px; margin-top: 10px; font-weight: 700;">{% if original %}CHANGE AVATAR{% else %}UPLOAD AVATAR{% endif %}</span>
+                </div>
+            </div>
+            <div style="display: none;">{{ adminform.form.avatar }}</div>
+
+            <p style="margin-top: 15px; font-size: 12px; color: rgba(255, 255, 255, 0.5); text-align: center; line-height: 1.4; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
+                {% if original %}Click the image to upload a new avatar{% else %}Click the image to upload an avatar{% endif %}
+            </p>
+
+            {% if original %}
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.05);">
+                <button type="button" onclick="confirmDeleteUser()"
+                        style="width: 100%; background: rgba(255, 68, 68, 0.1); color: #ff5c5c; border: 1px solid rgba(255, 68, 68, 0.3); padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.3s;"
+                        onmouseover="this.style.background='rgba(255, 68, 68, 0.2)'; this.style.borderColor='rgba(255, 68, 68, 0.5)';"
+                        onmouseout="this.style.background='rgba(255, 68, 68, 0.1)'; this.style.borderColor='rgba(255, 68, 68, 0.3)';">
+                    Delete User
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<script>
+    (function() {
+        const form = document.getElementById('{{ opts.model_name }}_form');
+        if (!form || form.dataset.saveHistoryBound) return;
+        form.dataset.saveHistoryBound = 'true';
+
+        form.addEventListener('submit', function(event) {
+            const submitter = event.submitter || document.activeElement;
+            if (!submitter || submitter.name !== '_save' || form.dataset.saveSubmitting === 'true') return;
+
+            event.preventDefault();
+            form.dataset.saveSubmitting = 'true';
+            submitter.disabled = true;
+
+            const postUrl = form.getAttribute('action') || window.location.href;
+            const formData = new FormData(form);
+            if (submitter.name && !formData.has(submitter.name)) {
+                formData.append(submitter.name, submitter.value || '');
+            }
+
+            fetch(postUrl, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => response.text())
+            .then(html => {
+                if (html.includes('<title>Redirecting...</title>') && html.includes('window.location.replace')) {
+                    window.location.replace('{{ return_url|escapejs }}');
+                    return;
+                }
+
+                document.open();
+                document.write(html);
+                document.close();
+                window.history.replaceState({}, document.title, postUrl);
+            })
+            .catch(() => {
+                form.dataset.saveSubmitting = 'false';
+                submitter.disabled = false;
+                if (submitter.name && !form.querySelector(`input[type="hidden"][name="${submitter.name}"]`)) {
+                    const fallbackSubmit = document.createElement('input');
+                    fallbackSubmit.type = 'hidden';
+                    fallbackSubmit.name = submitter.name;
+                    fallbackSubmit.value = submitter.value || '';
+                    form.appendChild(fallbackSubmit);
+                }
+                form.submit();
+            });
+        });
+    })();
+
+    // Avatar preview on file select
+    const avatarInput = document.getElementById('id_avatar');
+    const avatarPreview = document.getElementById('avatar-preview-img');
+
+    if (avatarInput && avatarPreview) {
+        avatarInput.onchange = function() {
+            const [file] = avatarInput.files;
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => { avatarPreview.src = ev.target.result; };
+            reader.readAsDataURL(file);
+        };
+    }
+
+    {% if original %}
+    function confirmDeleteUser() {
+        showHubConfirm('Delete User', 'Are you sure you want to delete {{ original.username }}? This action cannot be undone.', () => {
+            const formData = new FormData();
+            formData.append('user_id', '{{ original.pk }}');
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch('/api/delete-user/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showHubToast('User deleted');
+                    window.location.replace('{{ return_url|escapejs }}');
+                } else {
+                    showHubToast('Error: ' + data.error);
+                }
+            });
+        });
+    }
+    {% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% load music_tags %}
+<div class="topviews-item" data-song-id="{{ song.id }}" data-song-type="{{ song.song_type }}"
+    onclick="if(!event.target.closest('.tv-actions') && !event.target.closest('a'))loadAndPlay('{{ song.download_link.url }}', '{{ song.name|escapejs }}', '{{ song.arrangement|escapejs }}', '{% if song.cover %}{{ song.cover|bust_url }}{% else %}/media/covers/default_cover.jpg{% endif %}', '{{ song.id }}')">
+    <span class="tv-rank {% if rank == 1 %}tv-gold{% elif rank == 2 %}tv-silver{% elif rank == 3 %}tv-bronze{% endif %}">{{ rank }}</span>
+    <div class="tv-cover-wrap">
+        <img src="{% if song.cover %}{{ song.cover|bust_url }}{% else %}/media/covers/default_cover.jpg{% endif %}"
+            class="tv-cover" alt="{{ song.name }}"
+            onerror="this.src='/media/covers/default_cover.jpg'" loading="lazy" />
+        <div class="tv-play-overlay">
+            <svg class="play-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+            </svg>
+            <svg class="pause-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+            </svg>
+        </div>
+    </div>
+    <div class="tv-info">
+        <span class="tv-title">{{ song.name }}</span>
+        <span class="tv-meta">
+            {% if not song.arrangement or 'unknown' in song.arrangement|lower %}
+                <span class="metadata-unknown">{{ song.arrangement|default:"Unknown" }}</span>
+            {% else %}
+                {% for artist_name in song.arrangement|split_artists %}
+                    {% if request.user.is_authenticated %}
+                        <a href="{% url 'music:artist_detail_frontend' artist_name %}" class="tv-artist-link">{{ artist_name }}</a>
+                    {% else %}
+                        <span>{{ artist_name }}</span>
+                    {% endif %}{% if not forloop.last %}<span class="tv-artist-sep"> / </span>{% endif %}
+                {% endfor %}
+            {% endif %}
+            <span class="tv-plays"> · {{ song.views }} plays</span>
+        </span>
+    </div>
+    <div class="tv-actions">
+        {% if request.user.is_authenticated %}
+        <button onclick="event.stopPropagation(); downloadSong('{{ song.download_link.url }}', '{{ song.name|escapejs }}')"
+            class="card-action-btn download-btn" title="Download">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+            </svg>
+        </button>
+        <button class="card-action-btn like-btn song-row-heart {% if is_liked %}is-liked{% endif %}"
+            data-song-id="{{ song.id }}" data-song-liked="{% if is_liked %}true{% else %}false{% endif %}"
+            title="Like"
+            onclick="event.preventDefault(); event.stopPropagation(); toggleLike('{{ song.id }}', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-heart heart-empty" viewBox="0 0 16 16">
+                <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z"/>
+            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="#ff4444" class="bi bi-heart-fill heart-filled" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/>
+            </svg>
+        </button>
+        {% endif %}
+    {% if request.user.is_authenticated %}
+    <div class="menu-container">
+        <button class="card-action-btn more-btn" title="More Options">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-three-dots" viewBox="0 0 16 16">
+                <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
+            </svg>
+        </button>
+        <div class="glass-menu">
+            <a href="#" class="glass-menu-item"
+                onclick="event.preventDefault(); event.stopPropagation(); window.closeAllMenus && window.closeAllMenus(); loadAndPlay('{{ song.download_link.url }}', '{{ song.name|escapejs }}', '{{ song.arrangement|escapejs }}', '{% if song.cover %}{{ song.cover|bust_url }}{% else %}/media/covers/default_cover.jpg{% endif %}', '{{ song.id }}')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right:10px;">
+                    <path d="M10.804 8 5 4.633v6.734L10.804 8zm.792-.696a.802.802 0 0 1 0 1.392l-6.363 3.692C4.713 12.69 4 12.345 4 11.692V4.308c0-.653.713-.998 1.233-.696l6.363 3.692z"/>
+                </svg> Play
+            </a>
+            <a href="javascript:void(0)" class="glass-menu-item"
+                onclick="event.stopPropagation(); window.closeAllMenus && window.closeAllMenus(); window.triggerAddToPlaylist({{ song.id }})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:10px;">
+                    <path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/>
+                </svg> Add to Playlist
+            </a>
+            <a href="#" class="glass-menu-item"
+                onclick="event.preventDefault(); event.stopPropagation(); window.closeAllMenus && window.closeAllMenus(); navigatePage('/comments/{{ song.id }}/')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" style="margin-right:10px;">
+                    <path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h4.153l2.847 2.847a.5.5 0 0 0 .854-.353V14h4a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H2zm1 3a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0 3a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0 3a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+                </svg> View Comments ({{ comment_count }})
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    </div>
+</div>

@@ -1,0 +1,432 @@
+<div class="player-details-view" id="player-details-view">
+    <div class="pdv-header">
+        <button class="pdv-close-btn" id="pdv-close-btn" title="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+            </svg>
+        </button>
+        <div class="pdv-header-right">
+            <!-- Buttons removed as requested -->
+        </div>
+    </div>
+    
+    <div class="pdv-main">
+        <div class="pdv-vinyl-container">
+            <div class="pdv-vinyl-wrapper">
+                <!-- SVG Stylus Arm -->
+                <svg class="pdv-stylus" id="pdv-stylus" xmlns="http://www.w3.org/2000/svg" width="120" height="200" viewBox="0 0 100 200">
+                    <!-- Base pivot -->
+                    <circle cx="20" cy="20" r="12" fill="#ddd" opacity="0.9"/>
+                    <circle cx="20" cy="20" r="4" fill="#666"/>
+                    <!-- Arm curve -->
+                    <path d="M20,20 Q60,70 80,160" fill="none" stroke="#e0e0e0" stroke-width="6" stroke-linecap="round"/>
+                    <path d="M20,20 Q60,70 80,160" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round"/>
+                    <!-- Headshell -->
+                    <rect x="72" y="160" width="16" height="30" rx="3" fill="#eee" transform="rotate(-15 80 160)"/>
+                    <rect x="70" y="185" width="20" height="6" rx="1" fill="#bbb" transform="rotate(-15 80 160)"/>
+                </svg>
+                
+                <div class="pdv-vinyl" id="pdv-vinyl">
+                    <img src="" class="pdv-cover" id="pdv-cover" alt="Album Cover">
+                </div>
+            </div>
+        </div>
+        
+        <div class="pdv-info-container">
+                <div class="pdv-title" id="pdv-title">No Track Selected</div>
+            <div class="pdv-meta">
+                <div class="pdv-meta-item">
+                    <span class="pdv-meta-label">Album:</span>
+                    <div class="hover-marquee-wrapper pdv-meta-marquee">
+                        <div class="hover-marquee-content">
+                            {% if request.user.is_authenticated %}<a id="pdv-album-link" class="metadata-unknown" style="color: inherit; text-decoration: none;"><span id="pdv-album">Unknown Album</span></a>{% else %}<span id="pdv-album-link" class="metadata-unknown" style="color: inherit; text-decoration: none;"><span id="pdv-album">Unknown Album</span></span>{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="pdv-meta-item">
+                    <span class="pdv-meta-label">Artist:</span>
+                    <div class="hover-marquee-wrapper pdv-meta-marquee">
+                        <div class="hover-marquee-content">
+                            <span id="pdv-artist-link" class="metadata-unknown" style="color: inherit; text-decoration: none;"><span id="pdv-artist">Unknown Artist</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pdv-tabs">
+                <div class="pdv-tab active">Lyrics</div>
+                <div class="pdv-tab">Encyclopedia</div>
+                <div class="pdv-tab">Similar</div>
+            </div>
+            
+            <div class="pdv-tab-content-area" id="pdv-tab-content">
+                <!-- Lyrics Tab -->
+                <div id="pdv-tab-lyrics" class="pdv-tab-pane active-pane">
+                    <div class="pdv-lyrics-placeholder" style="width: 100%; height: 100%; padding-top: 50px; padding-left: 0px;">
+                        <p style="margin-bottom: 10px;">No lyrics available</p>
+                    </div>
+                </div>
+
+                <!-- Encyclopedia Tab -->
+                <div id="pdv-tab-encyclopedia" class="pdv-tab-pane" style="display: none;">
+                    <div class="pdv-encyclopedia-card">
+                        <h3 class="pdv-encyclopedia-title">Song Encyclopedia</h3>
+                        <div class="pdv-encyclopedia-row">
+                            <div class="pdv-encyclopedia-label">Genre</div>
+                            <div class="pdv-encyclopedia-value" id="ency-genre">-</div>
+                        </div>
+                        <div class="pdv-encyclopedia-row">
+                            <div class="pdv-encyclopedia-label">Release Date</div>
+                            <div class="pdv-encyclopedia-value" id="ency-date">-</div>
+                        </div>
+                        <div class="pdv-encyclopedia-row">
+                            <div class="pdv-encyclopedia-label">Duration</div>
+                            <div class="pdv-encyclopedia-value" id="ency-duration">-</div>
+                        </div>
+                        <div class="pdv-encyclopedia-row">
+                            <div class="pdv-encyclopedia-label">Plays</div>
+                            <div class="pdv-encyclopedia-value" id="ency-views">-</div>
+                        </div>
+                        <div class="pdv-encyclopedia-intro" id="ency-intro">
+                            No introduction available.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Similar Tab -->
+                <div id="pdv-tab-similar" class="pdv-tab-pane" style="display: none;">
+                    <div style="padding-top: 30px; opacity: 0.5;">
+                        <p>Finding similar tracks...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comments View Overlay -->
+    <div class="pdv-comments-view" id="pdv-comments-view">
+        <div class="pdv-comments-mini-header" id="pdv-comments-mini-header" 
+             onclick="console.log('[PDV] Mini Header Clicked - Returning to Player'); event.stopPropagation(); if(window.togglePDVCommentMode) window.togglePDVCommentMode(false);" 
+             style="z-index: 99999; pointer-events: auto !important;">
+            <img id="pdv-mini-cover" src="" alt="" style="pointer-events: none;">
+            <div class="pdv-mini-info" style="pointer-events: none;">
+                <div class="pdv-mini-title" id="pdv-mini-title">Title</div>
+                <div class="pdv-mini-artist" id="pdv-mini-artist">Artist</div>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-left: 8px; opacity: 0.8; transform: translateY(-1px); pointer-events: none;">
+                <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708l6-6z"/>
+            </svg>
+        </div>
+        
+        <div class="pdv-comments-scroll-area" id="pdv-comments-list">
+            <!-- Comments injected here -->
+        </div>
+
+        <!-- Input Area hidden as per request -->
+        <div class="pdv-comments-footer" style="display: none;">
+            <!-- Will be added later -->
+        </div>
+
+        <!-- Bottom Floating Post Capsule -->
+        <div class="pdv-comments-post-capsule" onclick="openPDVPostModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
+            </svg>
+            <span>Post Comment</span>
+        </div>
+    </div>
+</div>
+
+<!-- PDV Post Comment Modal -->
+<div class="pdv-post-modal-overlay" id="pdv-post-modal-overlay" onclick="if(event.target===this) closePDVPostModal()">
+    <div class="pdv-post-modal-card">
+        <button class="pdv-post-modal-close" onclick="closePDVPostModal()">&times;</button>
+        <div class="pdv-post-modal-song" id="pdv-post-modal-song"></div>
+        <div class="pdv-post-modal-reply-quote" id="pdv-post-modal-reply-quote">
+            <span class="pdv-post-modal-reply-user" id="pdv-post-modal-reply-user"></span>
+            <span class="pdv-post-modal-reply-preview" id="pdv-post-modal-reply-preview"></span>
+        </div>
+        <textarea class="pdv-post-modal-textarea" id="pdv-post-modal-textarea"
+            placeholder="Share your thoughts..."
+            maxlength="1000"
+            oninput="
+                document.getElementById('pdv-post-modal-count').textContent = 1000 - this.value.length;
+                document.getElementById('pdv-post-modal-btn').disabled = this.value.trim().length === 0;
+            "></textarea>
+        <div class="pdv-post-modal-footer">
+            <span class="pdv-post-modal-count-wrap"><span id="pdv-post-modal-count">1000</span></span>
+            <button class="pdv-post-modal-btn" id="pdv-post-modal-btn" onclick="submitPDVComment()" disabled>Post</button>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    (function() {
+        // --- PDV Comment Logic ---
+        
+        window.refreshPDVComments = async function(songId) {
+            const listEl = document.getElementById('pdv-comments-list');
+            if(!listEl) return;
+
+            listEl.innerHTML = '<div style="padding: 100px; text-align: center; opacity: 0.5;">Loading comments...</div>';
+
+            try {
+                const response = await fetch(`/api/comments/${songId}/`);
+                const data = await response.json();
+                
+                if(data.success) {
+                    let html = '';
+                    
+                    // Always show All Comments Header
+                    html += `
+                        <div class="pdv-comment-section-title" style="margin-top: 10px; color: rgba(255, 255, 255, 0.9); font-size: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 8px;">
+                            All Comments <span style="font-size: 11px; opacity: 0.6; font-weight: 500; margin-left: 2px;">${data.total_count}</span>
+                        </div>
+                    `;
+
+                    if(data.total_count === 0) {
+                        // Show Latest header and Empty State
+                        html += `<div class="pdv-comment-section-title">Latest Comments (0)</div>`;
+                        html += `
+                            <div class="empty-comment-state" style="text-align: center; padding: 60px 20px; color: rgba(255, 255, 255, 0.6); text-shadow: 0 2px 10px rgba(0,0,0,0.5);">
+                                <div style="margin-bottom: 15px; opacity: 0.8;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" fill="var(--aurora-green)" class="bi bi-chat-dots-fill" viewBox="0 0 16 16">
+                                        <path d="M16 8c0 3.866-3.582 7-8 7a9.06 9.06 0 0 1-2.347-.306c-.584.296-1.925.864-4.181 1.234-.2.032-.352-.176-.273-.362.354-.836.674-1.95.77-2.966C.744 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7zM5 8a1 1 0 1 0-2 0 1 1 0 0 0 2 0zm4 0a1 1 0 1 0-2 0 1 1 0 0 0 2 0zm3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+                                    </svg>
+                                </div>
+                                <h3 style="font-weight: 700; letter-spacing: 0.5px; font-size: 18px; color: #fff; margin: 0;">No comments yet.</h3>
+                                <p style="margin-top: 8px; font-size: 13px; opacity: 0.8;">Be the first to share your thoughts!</p>
+                            </div>
+                        `;
+                    } else {
+                        // Hot Comments Section
+                        if(data.hot_comments && data.hot_comments.length > 0) {
+                            html += `<div class="pdv-comment-section-title">Hot Comments (${data.hot_comments.length})</div>`;
+                            data.hot_comments.forEach(c => html += renderCommentItem(c));
+                        }
+
+                        // Latest Comments Section
+                        html += `<div class="pdv-comment-section-title">Latest Comments (${data.total_count})</div>`;
+                        data.latest_comments.forEach(c => html += renderCommentItem(c));
+                    }
+
+                    listEl.innerHTML = html;
+                } else {
+                    listEl.innerHTML = `<div style="padding: 100px; text-align: center; color: #ff4444;">${data.error || 'Failed to load comments'}</div>`;
+                }
+            } catch (err) {
+                listEl.innerHTML = '<div style="padding: 100px; text-align: center; color: #ff4444;">Network error.</div>';
+            }
+        };
+
+        function renderCommentItem(comment) {
+            let quoteHtml = '';
+            if (comment.parent_username && comment.parent_content) {
+                quoteHtml = `
+                    <div class="quoted-reply">
+                        <span class="quoted-user">@${comment.parent_username}:</span>
+                        <span class="quoted-text">${comment.parent_content}</span>
+                    </div>
+                `;
+            }
+
+            let deleteBtnHtml = '';
+            if (comment.can_delete) {
+                deleteBtnHtml = `
+                    <button class="c-action-btn delete-btn" title="Delete" onclick="deleteCommentFromPDV('${comment.id}', this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                        </svg>
+                    </button>
+                `;
+            }
+
+            return `
+                <div class="pdv-comment-item" id="pdv-comment-${comment.id}">
+                    <img src="${comment.avatar}" class="pdv-comment-avatar" alt="">
+                    <div class="pdv-comment-main">
+                        <div class="comment-header">
+                            <span class="comment-user pdv-comment-user">${comment.user}</span>
+                        </div>
+                        <div class="pdv-comment-content">${comment.content}</div>
+                        ${quoteHtml}
+                        <div class="pdv-comment-footer">
+                            <div class="pdv-comment-time">${comment.created_at}</div>
+                            <div class="pdv-comment-actions">
+                                <!-- Like -->
+                                <button class="c-action-btn like-btn ${comment.is_liked ? 'is-liked' : ''}" 
+                                        data-comment-id="${comment.id}"
+                                        title="Like"
+                                        onclick="toggleCommentLikeFromPDV('${comment.id}', this)">
+                                    <span class="likes-count" style="font-size: 11px; margin-right: 2px; font-weight: 600;">${comment.good_count || '0'}</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M7 10v12"/>
+                                        <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>
+                                    </svg>
+                                </button>
+
+                                <!-- Reply -->
+                                <button class="c-action-btn" title="Reply" onclick="openPDVReplyModal('${comment.id}', '${comment.user.replace(/'/g, "\\'")}', '${comment.content.replace(/'/g, "\\'").replace(/\n/g, ' ')}')">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M2.678 11.894a1 1 0 0 1 .287.801 10.97 10.97 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8.06 8.06 0 0 0 8 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105z"/>
+                                    </svg>
+                                </button>
+                                ${deleteBtnHtml}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.toggleCommentLikeFromPDV = function(commentId, btn) {
+            if(!isAuthenticated) { showHubToast('Please login first'); return; }
+            
+            fetch('/api/toggle-comment-like/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken') },
+                body: `comment_id=${commentId}`
+            }).then(r => r.json()).then(data => {
+                if(data.success) {
+                    const allInstances = document.querySelectorAll(`[data-comment-id="${commentId}"]`);
+                    allInstances.forEach(inst => {
+                        const countSpan = inst.querySelector('.likes-count');
+                        if(countSpan) countSpan.textContent = data.likes_count;
+                        if(data.is_liked) inst.classList.add('is-liked');
+                        else inst.classList.remove('is-liked');
+                    });
+                } else {
+                    showHubToast(data.error);
+                }
+            });
+        };
+
+        window.deleteCommentFromPDV = function(commentId, btn) {
+            if(window.showHubConfirm) {
+                window.showHubConfirm('Delete Comment', 'Are you sure you want to delete this comment?', () => {
+                    executeDelete(commentId, btn);
+                });
+            } else if(confirm("Are you sure you want to delete this comment?")) {
+                executeDelete(commentId, btn);
+            }
+        };
+
+        // --- PDV Post Comment Modal ---
+        window._pdvReplyParentId = null;
+
+        function _openPDVModal(songName, replyParentId, replyUsername, replyContentPreview) {
+            const overlay = document.getElementById('pdv-post-modal-overlay');
+            const textarea = document.getElementById('pdv-post-modal-textarea');
+            const songLabel = document.getElementById('pdv-post-modal-song');
+            const btn = document.getElementById('pdv-post-modal-btn');
+            const count = document.getElementById('pdv-post-modal-count');
+            const replyQuote = document.getElementById('pdv-post-modal-reply-quote');
+            const replyUser = document.getElementById('pdv-post-modal-reply-user');
+            const replyPreview = document.getElementById('pdv-post-modal-reply-preview');
+
+            window._pdvReplyParentId = replyParentId || null;
+            songLabel.textContent = songName;
+
+            if (replyParentId) {
+                replyUser.textContent = '@' + replyUsername + ':';
+                const preview = replyContentPreview.length > 60 ? replyContentPreview.slice(0, 60) + '…' : replyContentPreview;
+                replyPreview.textContent = ' ' + preview;
+                replyQuote.style.display = 'block';
+                textarea.placeholder = 'Reply to @' + replyUsername + '...';
+            } else {
+                replyQuote.style.display = 'none';
+                textarea.placeholder = 'Share your thoughts...';
+            }
+
+            textarea.value = '';
+            count.textContent = '1000';
+            btn.disabled = true;
+            overlay.style.display = 'flex';
+            setTimeout(() => { overlay.classList.add('active'); textarea.focus(); }, 10);
+        }
+
+        window.openPDVPostModal = function() {
+            if (!window.currentSongId) { showHubToast('No song selected'); return; }
+            if (!isAuthenticated) { showHubToast('Please login first'); return; }
+            const title = document.getElementById('pdv-title');
+            _openPDVModal(title ? title.textContent : '', null, null, null);
+        };
+
+        window.openPDVReplyModal = function(commentId, username, content) {
+            if (!window.currentSongId) { showHubToast('No song selected'); return; }
+            if (!isAuthenticated) { showHubToast('Please login first'); return; }
+            const title = document.getElementById('pdv-title');
+            _openPDVModal(title ? title.textContent : '', commentId, username, content);
+        };
+
+        window.closePDVPostModal = function() {
+            const overlay = document.getElementById('pdv-post-modal-overlay');
+            overlay.classList.remove('active');
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                window._pdvReplyParentId = null;
+                document.getElementById('pdv-post-modal-reply-quote').style.display = 'none';
+            }, 300);
+        };
+
+        window.submitPDVComment = function() {
+            const textarea = document.getElementById('pdv-post-modal-textarea');
+            const btn = document.getElementById('pdv-post-modal-btn');
+            const content = textarea.value.trim();
+            if (!content || !window.currentSongId) return;
+
+            btn.disabled = true;
+            btn.textContent = 'Posting...';
+
+            const fd = new FormData();
+            fd.append('song_id', window.currentSongId);
+            fd.append('content', content);
+            fd.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+            if (window._pdvReplyParentId) {
+                fd.append('parent_id', window._pdvReplyParentId);
+            }
+
+            fetch('/api/post-comment/', { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        showHubToast('Posted successfully');
+                        closePDVPostModal();
+                        if (window.refreshPDVComments) window.refreshPDVComments(window.currentSongId);
+                        if (window.syncPlayerCommentCount) window.syncPlayerCommentCount(window.currentSongId);
+                    } else {
+                        showHubToast('Failed: ' + (data.error || 'Unknown error'));
+                        btn.disabled = false;
+                        btn.textContent = 'Post';
+                    }
+                })
+                .catch(() => {
+                    showHubToast('Network error');
+                    btn.disabled = false;
+                    btn.textContent = 'Post';
+                });
+        };
+
+        function executeDelete(commentId, btn) {
+            fetch('/api/delete-comment/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken') },
+                body: `comment_id=${commentId}`
+            }).then(r => r.json()).then(data => {
+                if(data.success) {
+                    showHubToast('Deleted');
+                    const item = btn.closest('.pdv-comment-item');
+                    if(item) {
+                        item.style.opacity = '0';
+                        setTimeout(() => item.remove(), 300);
+                    }
+                    if(window.syncPlayerCommentCount) window.syncPlayerCommentCount(window.currentSongId);
+                }
+            });
+        }
+    })();
+</script>

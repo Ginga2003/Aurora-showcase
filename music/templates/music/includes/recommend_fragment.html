@@ -1,0 +1,6 @@
+{% load music_tags %}
+{% for item in recommend_songs %}
+{% include 'music/includes/song_card.html' with song=item.obj is_liked=item.is_liked comment_count=item.comment_count %}
+{% empty %}
+<p style="color:rgba(255,255,255,0.4); padding:20px 0; font-size:14px;">No songs available.</p>
+{% endfor %}

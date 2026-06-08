@@ -1,0 +1,113 @@
+<!-- Play Queue Overlay (to catch clicks outside) -->
+<div id="play-queue-overlay" class="play-queue-overlay"></div>
+
+<!-- Play Queue Sidebar -->
+<div id="play-queue" class="play-queue">
+    <div class="play-queue-header">
+        <div class="play-queue-header-left">
+            <span class="play-queue-title">Play Queue<span class="play-queue-count" id="queue-count">0</span></span>
+        </div>
+        <div class="play-queue-header-right">
+            <div class="queue-action" id="queue-collect-all" title="Collect All to Playlist" style="gap: 5px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 12H3"></path><path d="M16 6H3"></path><path d="M16 18H3"></path><path d="M18 9v6"></path><path d="M21 12h-6"></path>
+                </svg>
+                <span>Collect All</span>
+            </div>
+            <div class="queue-action" id="queue-clear" title="Clear All">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                    <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                </svg>
+                <span>Clear</span>
+            </div>
+        </div>
+    </div>
+    <div class="play-queue-content" id="queue-songs-list">
+        <div style="padding: 40px; text-align: center; color: rgba(255,255,255,0.4);">
+            Queue is empty
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const queueBtn = document.getElementById('player-queue-btn');
+        const queue = document.getElementById('play-queue');
+        const queueOverlay = document.getElementById('play-queue-overlay');
+
+        if (queueBtn && queue && queueOverlay) {
+            const toggleQueue = (e) => {
+                if (e) e.stopPropagation();
+                const isActive = queue.classList.toggle('active');
+                queueOverlay.style.display = isActive ? 'block' : 'none';
+                localStorage.setItem('hub_queue_open', isActive);
+            };
+
+            const closeQueue = () => {
+                queue.classList.remove('active');
+                queueOverlay.style.display = 'none';
+                localStorage.setItem('hub_queue_open', 'false');
+            };
+
+            queueBtn.addEventListener('click', toggleQueue);
+            queueOverlay.addEventListener('click', closeQueue);
+
+            // Persistent state check
+            if (localStorage.getItem('hub_queue_open') === 'true') {
+                queue.classList.add('no-transition');
+                queue.classList.add('active');
+                queueOverlay.style.display = 'block';
+                // Small delay to allow reflow, then re-enable transitions for future user clicks
+                setTimeout(() => {
+                    queue.classList.remove('no-transition');
+                }, 100);
+            }
+            
+            // Clear Queue Logic
+            const clearBtn = document.getElementById('queue-clear');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    if (window.playerQueue.length === 0) return;
+                    showHubConfirm('Clear Queue', 'Are you sure you want to clear the play queue?', () => {
+                        if (window.clearAuroraQueue) {
+                            window.clearAuroraQueue();
+                        } else {
+                            // Fallback if global not ready
+                            window.playerQueue = [];
+                            window.queueIndex = -1;
+                            window.currentSongId = null;
+                            if (typeof currentAudio !== 'undefined') {
+                                currentAudio.pause();
+                                currentAudio.src = '';
+                            }
+                        }
+                        showHubToast('Queue cleared');
+                    });
+                });
+            }
+
+            // Collect All Logic
+            const collectBtn = document.getElementById('queue-collect-all');
+            if (collectBtn) {
+                collectBtn.addEventListener('click', () => {
+                    if (window.playerQueue.length === 0) {
+                        showHubToast('Queue is empty');
+                        return;
+                    }
+                    const songIds = window.playerQueue.map(s => s.id).join(',');
+                    if (typeof openPlaylistModal === 'function') {
+                        openPlaylistModal(songIds);
+                    }
+                });
+            }
+
+            // Close on hitting ESC
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && queue.classList.contains('active')) {
+                    closeQueue();
+                }
+            });
+        }
+    });
+</script>

@@ -1,0 +1,436 @@
+﻿{% extends 'music/base.html' %}
+{% load static %}
+{% load music_tags %}
+
+{% block title %}Discover Music{% endblock %}
+
+{% block content %}
+<div class="page-entrance">
+
+    <!-- TOP TAB NAVIGATION -->
+    <div class="featured-tabs"
+        style="display:flex; gap:30px; border-bottom:1px solid rgba(255,255,255,0.08); margin-bottom:32px; padding-bottom:15px;">
+        <a href="{% url 'music:index' %}" class="tab-item active"
+            style="color:#fff; text-decoration:none; font-weight:600; font-size:17px; position:relative; letter-spacing:0.2px;">
+            Featured
+            <span style="position:absolute; bottom:-16px; left:50%; transform:translateX(-50%); width:22px; height:3px; background:#00C78A; border-radius:2px;"></span>
+        </a>
+        {% if request.user.is_authenticated %}
+            <a href="{% url 'music:discovery' %}" class="tab-item"
+                style="color:rgba(255,255,255,0.45); text-decoration:none; font-size:17px; transition:color 0.25s; letter-spacing:0.2px;"
+                onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.45)'">
+                Playlist Square
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- SECTION: Recommended for You -->
+    <div class="shelf-section">
+        <div class="shelf-hdr">
+            <h3 class="shelf-hdr-title">
+                <svg class="shelf-section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.345.386.616.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.116.617-.387.732-.732L10.863.1z"/>
+                </svg>
+                Recommended for You
+            </h3>
+            <a class="recommend-refresh-btn" title="Refresh recommendations"
+                onclick="refreshRecommend()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                </svg>
+                Refresh
+            </a>
+        </div>
+        <div class="shelf-scroll-wrap">
+            <button class="shelf-arrow shelf-arrow-left shelf-arrow-hidden" onclick="shelfScroll(this,-1)" aria-label="Previous">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/></svg>
+            </button>
+            <div class="shelf-scroll-row">
+                {% for item in recommend_songs %}
+                {% include 'music/includes/song_card.html' with song=item.obj is_liked=item.is_liked comment_count=item.comment_count %}
+                {% empty %}
+                <p style="color:rgba(255,255,255,0.4); padding:20px 0; font-size:14px;">No songs available.</p>
+                {% endfor %}
+            </div>
+            <button class="shelf-arrow shelf-arrow-right" onclick="shelfScroll(this,1)" aria-label="Next">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- SECTION: Top Views 鈥?ranked 3-column grid -->
+    <div class="shelf-section">
+        <div class="shelf-hdr">
+            <h3 class="shelf-hdr-title">
+                <svg class="shelf-section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 16c3.314 0 6-2 6-5.5 0-1.5-.5-4-2.5-6 .25 1.5-1.25 2-1.25 2C11 4 9 .5 6 0c.357 2 .5 4-2 6-1.25 1-2 2.729-2 4.5C2 14 4.686 16 8 16zm0-1c-1.657 0-3-1-3-2.75 0-.75.25-2 1.25-3C6.125 10 7 10.5 7 10.5c-.375-1.25.5-3.25 2-3.5-.179 1-.25 2 1 3 .625.5 1 1.364 1 2.25C11 14 9.657 15 8 15z"/>
+                </svg>
+                Top Views
+            </h3>
+            {% if request.user.is_authenticated %}
+                <a href="{% url 'music:library' %}?sort=popular" class="shelf-hdr-link">
+                    See All
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="currentColor" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                    </svg>
+                </a>
+            {% endif %}
+        </div>
+        <div class="topviews-grid">
+            <div class="topviews-col">
+                {% for item in top_views_songs|slice:":3" %}
+                {% include 'music/includes/topviews_item.html' with song=item.obj rank=item.rank is_liked=item.is_liked comment_count=item.comment_count %}
+                {% endfor %}
+            </div>
+            <div class="topviews-col">
+                {% for item in top_views_songs|slice:"3:6" %}
+                {% include 'music/includes/topviews_item.html' with song=item.obj rank=item.rank is_liked=item.is_liked comment_count=item.comment_count %}
+                {% endfor %}
+            </div>
+            <div class="topviews-col">
+                {% for item in top_views_songs|slice:"6:9" %}
+                {% include 'music/includes/topviews_item.html' with song=item.obj rank=item.rank is_liked=item.is_liked comment_count=item.comment_count %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION: Recently Uploaded -->
+    <div class="shelf-section">
+        <div class="shelf-hdr">
+            <h3 class="shelf-hdr-title">
+                <svg class="shelf-section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M11.251.068a.5.5 0 0 1 .227.58L9.677 6.5H13a.5.5 0 0 1 .364.843l-8 8.5a.5.5 0 0 1-.842-.49L6.323 9.5H3a.5.5 0 0 1-.364-.843l8-8.5a.5.5 0 0 1 .615-.09z"/>
+                </svg>
+                Recently Uploaded
+            </h3>
+            {% if request.user.is_authenticated %}
+                <a href="{% url 'music:library' %}?sort=-id" class="shelf-hdr-link">
+                    See All
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="currentColor" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                    </svg>
+                </a>
+            {% endif %}
+        </div>
+        <div class="recent-grid">
+            {% for item in recently_songs %}
+            {% with song=item.obj %}
+            <div class="recent-item" data-song-id="{{ song.id }}" data-song-type="{{ song.song_type }}"
+                onclick="if(!event.target.closest('a'))loadAndPlay('{{ song.download_link.url }}', '{{ song.name|escapejs }}', '{{ song.arrangement|escapejs }}', '{% if song.cover %}{{ song.cover|bust_url }}{% else %}/media/covers/default_cover.jpg{% endif %}', '{{ song.id }}')">
+                <div class="recent-cover-wrap">
+                    <img src="{% if song.cover %}{{ song.cover|bust_url }}{% else %}/media/covers/default_cover.jpg{% endif %}"
+                        class="recent-cover" alt="{{ song.name }}"
+                        onerror="this.src='/media/covers/default_cover.jpg'" loading="lazy" />
+                    <div class="recent-play-overlay">
+                        <svg class="play-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+                        </svg>
+                        <svg class="pause-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="recent-info">
+                    <span class="recent-title">{{ song.name }}</span>
+                    <span class="recent-artist">
+                        {% if not song.arrangement or 'unknown' in song.arrangement|lower %}
+                            <span class="metadata-unknown">{{ song.arrangement|default:"Unknown" }}</span>
+                        {% else %}
+                            {% for artist_name in song.arrangement|split_artists %}
+                                {% if request.user.is_authenticated %}
+                                    <a href="{% url 'music:artist_detail_frontend' artist_name %}" class="recent-artist-link">{{ artist_name }}</a>
+                                {% else %}
+                                    <span>{{ artist_name }}</span>
+                                {% endif %}{% if not forloop.last %}<span style="color:rgba(255,255,255,0.25)"> / </span>{% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    </span>
+                </div>
+                <span class="recent-badge">NEW</span>
+            </div>
+            {% endwith %}
+            {% empty %}
+            <p style="color:rgba(255,255,255,0.4);padding:20px 0;font-size:14px;grid-column:1/-1;">No songs available.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- SECTION: Browse by Type -->
+    {% if type_list %}
+    <div class="shelf-section">
+        <div class="shelf-hdr">
+            <h3 class="shelf-hdr-title">
+                <svg class="shelf-section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M12 13c0 1.105-1.12 2-2.5 2S7 14.105 7 13s1.12-2 2.5-2 2.5.895 2.5 2z"/>
+                    <path fill-rule="evenodd" d="M12 3v10h-1V3h1z"/>
+                    <path d="M11 2.82a1 1 0 0 1 .804-.98l3-.6A1 1 0 0 1 16 2.22V4l-5 1V2.82z"/>
+                    <path fill-rule="evenodd" d="M0 11.5a.5.5 0 0 1 .5-.5H4a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.5-.5zm0-4A.5.5 0 0 1 .5 7H8a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.5-.5zm0-4A.5.5 0 0 1 .5 3H8a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.5-.5z"/>
+                </svg>
+                Browse by Type
+            </h3>
+        </div>
+        <div class="type-tabs">
+            {% for stype in type_list %}
+            <button class="type-tab{% if forloop.first %} active{% endif %}{% if stype|is_secondary_type %} secondary-type-label{% endif %}" data-type="{{ stype }}">{{ stype }}</button>
+            {% endfor %}
+        </div>
+        {% for stype, items in type_songs.items %}
+        <div class="type-song-list type-panel" data-type="{{ stype }}" data-page="1" data-loaded="true">
+            {% for item in items %}
+            {% include 'music/includes/type_song_row.html' with song=item.obj is_liked=item.is_liked comment_count=item.comment_count %}
+            {% endfor %}
+            {% if request.user.is_authenticated and items|length >= 8 %}
+            <div class="type-load-more-wrap">
+                <button class="type-load-more-btn" data-type="{{ stype }}">Load More</button>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- SECTION: Listen Again -->
+    {% if listen_again_songs %}
+    <div class="shelf-section">
+        <div class="shelf-hdr">
+            <h3 class="shelf-hdr-title">
+                <svg class="shelf-section-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2v1z"/>
+                    <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466z"/>
+                </svg>
+                Listen Again
+            </h3>
+        </div>
+        <div class="compact-list">
+            {% for item in listen_again_songs %}
+            {% with song=item.obj %}
+            <div class="compact-item" data-song-type="{{ song.song_type }}" data-song-id="{{ song.id }}" onclick="if(!event.target.closest('a'))loadAndPlay('{{ song.download_link.url }}', '{{ song.name|escapejs }}', '{{ song.arrangement|escapejs }}', '{% if song.cover %}{{ song.cover|bust_url }}{% else %}/media/covers/default_cover.jpg{% endif %}', '{{ song.id }}')">
+                <div class="compact-cover-wrap">
+                    <img src="{% if song.cover %}{{ song.cover|bust_url }}{% else %}/media/covers/default_cover.jpg{% endif %}" class="compact-cover" alt="{{ song.name }}" onerror="this.src='/media/covers/default_cover.jpg'" loading="lazy" />
+                    <div class="compact-play-overlay">
+                        <svg class="play-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+                        </svg>
+                        <svg class="pause-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="compact-info">
+                    <span class="compact-title">{{ song.name }}</span>
+                    <span class="compact-artist">
+                        {% if not song.arrangement or 'unknown' in song.arrangement|lower %}
+                            <span class="metadata-unknown">{{ song.arrangement|default:"Unknown Artist" }}</span>
+                        {% else %}
+                            {% for artist_name in song.arrangement|split_artists %}
+                                {% if request.user.is_authenticated %}
+                                    <a href="{% url 'music:artist_detail_frontend' artist_name %}" class="recent-artist-link">{{ artist_name }}</a>
+                                {% else %}
+                                    <span>{{ artist_name }}</span>
+                                {% endif %}{% if not forloop.last %}<span style="color:rgba(255,255,255,0.25)"> / </span>{% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            {% endwith %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+// Refresh recommend: only swaps the shelf-scroll-row content, nothing else changes
+function refreshRecommend() {
+    var row = document.querySelector('.shelf-scroll-row');
+    if (!row) return;
+    var btn = document.querySelector('.recommend-refresh-btn');
+    if (btn) { btn.style.opacity = '0.45'; btn.style.pointerEvents = 'none'; }
+
+    // Fade out + fetch in parallel
+    row.style.transition = 'opacity 0.2s ease';
+    row.style.opacity = '0.1';
+
+    var fetchDone = fetch('/api/recommend-fragment/').then(function(r) { return r.text(); });
+    var fadeDone  = new Promise(function(res) { setTimeout(res, 220); });
+
+    Promise.all([fetchDone, fadeDone])
+        .then(function(results) {
+            row.innerHTML = results[0];
+            // Re-sync active/playing state
+            if (window.togglePlayPauseIcons && window.currentAudio) {
+                window.togglePlayPauseIcons(!window.currentAudio.paused);
+            }
+            // Re-init marquees
+            try { if (window.updateMarquees) window.updateMarquees(); } catch(e) {}
+            // Reset scroll & arrows
+            row.scrollLeft = 0;
+            var wrap = row.closest('.shelf-scroll-wrap');
+            if (wrap) updateShelfArrows(wrap);
+            // Fade in
+            row.style.opacity = '0';
+            requestAnimationFrame(function() {
+                row.style.transition = 'opacity 0.4s ease';
+                row.style.opacity = '1';
+                if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
+            });
+        })
+        .catch(function() {
+            row.style.opacity = '1';
+            if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
+        });
+}
+
+// Shelf arrow scroll
+function shelfScroll(btn, dir) {
+    var wrap = btn.parentElement;
+    var row = wrap.querySelector('.shelf-scroll-row');
+    if (!row) return;
+    row.scrollBy({ left: dir * (195 + 18) * 3, behavior: 'smooth' });
+    setTimeout(function() { updateShelfArrows(wrap); }, 380);
+}
+
+function updateShelfArrows(wrap) {
+    var row = wrap.querySelector('.shelf-scroll-row');
+    var btnL = wrap.querySelector('.shelf-arrow-left');
+    var btnR = wrap.querySelector('.shelf-arrow-right');
+    if (!row || !btnL || !btnR) return;
+    btnL.classList.toggle('shelf-arrow-hidden', row.scrollLeft <= 1);
+    btnR.classList.toggle('shelf-arrow-hidden', row.scrollLeft >= row.scrollWidth - row.clientWidth - 1);
+}
+
+document.querySelectorAll('.shelf-scroll-wrap').forEach(function(wrap) {
+    updateShelfArrows(wrap);
+    var row = wrap.querySelector('.shelf-scroll-row');
+    if (row) row.addEventListener('scroll', function() { updateShelfArrows(wrap); });
+});
+
+// Type tab switching
+var canLoadMoreTypes = !!(window.AURORA && window.AURORA.isAuthenticated);
+var browseTypeStorageKey = 'aurora_browse_by_type_active';
+
+function appendTypeLoadMore(panel, type) {
+    if (!canLoadMoreTypes) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'type-load-more-wrap';
+    var btn = document.createElement('button');
+    btn.className = 'type-load-more-btn';
+    btn.dataset.type = type;
+    btn.textContent = 'Load More';
+    wrap.appendChild(btn);
+    panel.appendChild(wrap);
+}
+
+function activateBrowseType(type, options) {
+    options = options || {};
+    if (!type) return;
+
+    var targetTab = document.querySelector('.type-tab[data-type="' + CSS.escape(type) + '"]');
+    if (!targetTab) return;
+
+    document.querySelectorAll('.type-tab').forEach(function(t) {
+        t.classList.toggle('active', t.dataset.type === type);
+    });
+
+    var panel = document.querySelector('.type-panel[data-type="' + CSS.escape(type) + '"]');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.className = 'type-song-list type-panel';
+        panel.dataset.type = type;
+        panel.dataset.page = '0';
+        panel.dataset.loaded = 'false';
+        document.querySelector('.type-tabs').insertAdjacentElement('afterend', panel);
+    }
+
+    document.querySelectorAll('.type-panel').forEach(function(p) {
+        p.classList.toggle('type-panel-hidden', p.dataset.type !== type);
+        if (options.skipAnimation) p.style.animation = 'none';
+    });
+
+    if (options.persist !== false) {
+        sessionStorage.setItem(browseTypeStorageKey, type);
+    }
+
+    if (panel.dataset.loaded === 'true') {
+        updateShelfArrows(panel);
+        if (window.updateMarquees) window.updateMarquees();
+        return;
+    }
+
+    panel.dataset.loaded = 'loading';
+    panel.innerHTML = '<div class="type-load-more-wrap"><button class="type-load-more-btn" disabled>Loading...</button></div>';
+    fetch('/api/type-songs/?type=' + encodeURIComponent(type) + '&page=1')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            panel.dataset.page = '1';
+            panel.dataset.loaded = 'true';
+            panel.innerHTML = data.html;
+            if (canLoadMoreTypes && data.has_more) {
+                appendTypeLoadMore(panel, type);
+            }
+            updateShelfArrows(panel);
+            if (window.updateMarquees) window.updateMarquees();
+        })
+        .catch(function() {
+            panel.dataset.loaded = 'false';
+            panel.innerHTML = '';
+            appendTypeLoadMore(panel, type);
+        });
+}
+window.activateBrowseType = activateBrowseType;
+
+document.querySelectorAll('.type-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+        activateBrowseType(this.dataset.type, { persist: true });
+    });
+});
+
+activateBrowseType(
+    sessionStorage.getItem(browseTypeStorageKey) ||
+    (document.querySelector('.type-tab.active[data-type]') || {}).dataset?.type,
+    { persist: false, skipAnimation: document.documentElement.classList.contains('no-entrance-anim') }
+);
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.type-load-more-btn');
+    if (!btn) return;
+    var panel = btn.closest('.type-panel');
+    var stype = btn.dataset.type;
+    if (!canLoadMoreTypes) return;
+    var nextPage = parseInt(panel.dataset.page) + 1;
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+    fetch('/api/type-songs/?type=' + encodeURIComponent(stype) + '&page=' + nextPage)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var wrap = btn.closest('.type-load-more-wrap');
+            wrap.insertAdjacentHTML('beforebegin', data.html);
+            panel.dataset.page = nextPage;
+            if (!data.has_more) wrap.remove();
+            else { btn.disabled = false; btn.textContent = 'Load More'; }
+            if (window.updateMarquees) window.updateMarquees();
+        })
+        .catch(function() { btn.disabled = false; btn.textContent = 'Load More'; });
+});
+</script>
+
+<style>
+.type-load-more-wrap { text-align: center; padding: 16px 0 4px; }
+.type-load-more-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.6);
+    padding: 7px 28px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+.type-load-more-btn:hover { border-color: #00C78A; color: #00C78A; }
+.type-load-more-btn:disabled { opacity: 0.4; cursor: default; }
+</style>
+{% endblock %}

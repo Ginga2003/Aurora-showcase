@@ -1,0 +1,221 @@
+{% extends 'music/base.html' %}
+{% load static %}
+
+{% block title %}
+{% if is_edit %}Edit Profile{% else %}Register{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Include Cropper.css -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+
+<div class="banner" style="min-height: 100vh; padding: 5em 0; display: flex; align-items: center;">
+    <div class="container"
+        style="position: relative; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); padding: 3em; border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
+
+        <!-- X Close Button to Home -->
+        <a href="{% url 'music:index' %}"
+            style="position: absolute; top: 15px; right: 25px; color: rgba(255, 255, 255, 0.85); font-size: 2em; text-decoration: none; transition: all 0.3s ease; line-height: 1;"
+            onmouseover="this.style.color='#ff4444'; this.style.textShadow='0 0 15px rgba(255,68,68,0.8)';"
+            onmouseout="this.style.color='rgba(255, 255, 255, 0.85)'; this.style.textShadow='none';">&times;</a>
+
+        <form id="registration-form" action="{% url 'music:register' %}" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="register-top-grid" style="width: 100%; max-width: 500px; margin: 0 auto; float: none;">
+                <h1 style="text-align: center; margin-bottom: 1.5em;">
+                    {% if is_edit %}EDIT PROFILE{% else %}CREATE ACCOUNT{% endif %}
+                </h1>
+
+                {% if form.errors %}
+                <div
+                    style="color: #ff4444; border: 1px solid #ff4444; padding: 10px; margin-bottom: 20px; background: rgba(255,0,0,0.1); border-radius: 5px;">
+                    <strong>Please correct the following errors:</strong><br>
+                    {% for field in form %}
+                    {% for error in field.errors %}
+                    - {{ field.label }}: {{ error }}<br>
+                    {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                    - {{ error }}<br>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div style="width: 100%; margin-bottom: 1.5em;">
+                    <span>Username<label>*</label></span>
+                    {{ form.username }}
+                </div>
+
+                <div style="width: 100%; margin-bottom: 1.5em;">
+                    <span>Email Address<label>*</label></span>
+                    {{ form.email }}
+                </div>
+
+                <!-- Only show extended fields and avatar if Editing Profile -->
+                {% if is_edit %}
+                <div style="width: 100%; margin-bottom: 1.5em;">
+                    <span>Phone Number<label>*</label></span>
+                    {{ form.phone_number }}
+                </div>
+                <div style="width: 100%; margin-bottom: 1.5em;">
+                    <span>City<label>*</label></span>
+                    {{ form.city }}
+                </div>
+                <div style="width: 100%; margin-bottom: 1.5em;">
+                    <span>Birthday<label>*</label></span>
+                    {{ form.birth }}
+                </div>
+
+                <div style="width: 100%; margin-bottom: 1.5em;">
+                    <span>Avatar <label>(Will be cropped square)</label></span>
+                    <input type="file" id="avatar-input" accept="image/png,image/jpeg,image/jpg"
+                        style="color: #fff; margin-bottom: 10px;">
+
+                    <div id="cropper-container"
+                        style="display: none; width: 100%; height: 300px; margin-bottom: 20px; background: #111;">
+                        <img id="image-to-crop" src="" style="max-width: 100%; display: block;">
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Hidden field to hold the final Base64 string for Django -->
+                {{ form.avatar_base64 }}
+
+                <h4
+                    style="margin-top: 2em; margin-bottom: 1em; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1em; color: #fff; font-size: 1.2em; font-weight: 300;">
+                    {% if is_edit %}CHANGE PASSWORD (Leave blank to keep current){% endif %}
+                </h4>
+
+                <div style="width: 100%; margin-bottom: 1.5em;">
+                    <span>{% if is_edit %}New Password{% else %}Password<label>*</label>{% endif %}</span>
+                    {% if is_edit %}{{ form.new_password }}{% else %}{{ form.password }}{% endif %}
+                </div>
+                <div style="width: 100%; margin-bottom: 1.5em;">
+                    <span>{% if is_edit %}Confirm New Password{% else %}Confirm Password<label>*</label>{%endif%}</span>
+                    {% if is_edit %}{{ form.confirm_new_password }}{% else %}{{ form.confirm_password }}{% endif %}
+                </div>
+
+                <div class="register-but" style="margin-top: 2.5em; text-align: center; float: none; width: 100%;">
+                    <style>
+                        #registration-form .modern-submit-btn {
+                            background: rgba(255, 255, 255, 0.05) !important;
+                            padding: 12px 0 !important;
+                            border-radius: 6px !important;
+                            font-size: 1.1em !important;
+                            font-weight: 500 !important;
+                            cursor: pointer !important;
+                            width: 75% !important;
+                            display: block !important;
+                            margin: 0 auto !important;
+                            text-align: center !important;
+                            text-decoration: none !important;
+                            transition: all 0.3s ease !important;
+                            color: #00C78A !important;
+                            border: 1px solid rgba(0, 199, 138, 0.4) !important;
+                            letter-spacing: 1px !important;
+                        }
+
+                        #registration-form .modern-submit-btn:hover {
+                            background: rgba(0, 199, 138, 0.15) !important;
+                            color: #00ffb3 !important;
+                            border-color: #00C78A !important;
+                            box-shadow: 0 0 15px rgba(0, 199, 138, 0.3) !important;
+                        }
+                    </style>
+                    <input type="submit" value="{% if is_edit %}Update Profile{% else %}Register{% endif %}"
+                        class="modern-submit-btn">
+                </div>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+<!-- Scripts for Cropper.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const image = document.getElementById('image-to-crop');
+        const input = document.getElementById('avatar-input');
+        const cropperContainer = document.getElementById('cropper-container');
+        const hiddenBase64Input = document.getElementById('id_avatar_base64');
+        const form = document.getElementById('registration-form');
+        let cropper = null;
+
+        input.addEventListener('change', function (e) {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                const file = files[0];
+
+                // Ensure it's an image
+                if (!file.type.match('image.*')) {
+                    showHubAlert('Invalid File', 'Please select a valid image file (JPG, PNG).');
+                    return;
+                }
+
+                // Show the container
+                cropperContainer.style.display = 'block';
+
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    image.src = event.target.result;
+
+                    // Destroy old cropper instance if exists
+                    if (cropper) {
+                        cropper.destroy();
+                    }
+
+                    // Initialize new Cropper
+                    cropper = new Cropper(image, {
+                        aspectRatio: 1, // Enforce perfectly square crop
+                        viewMode: 1,    // Restrict the crop box to not exceed the size of the canvas
+                        dragMode: 'move',
+                        autoCropArea: 0.8,
+                        restore: false,
+                        guides: true,
+                        center: true,
+                        highlight: false,
+                        cropBoxMovable: true,
+                        cropBoxResizable: true,
+                        toggleDragModeOnDblclick: false,
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Intercept form submission to get the final cropped image data
+        form.addEventListener('submit', function (e) {
+            // If NOT in edit mode (i.e., new registration), clear the play queue
+            const isRegistration = !window.location.search.includes('is_edit=true') && !{% if is_edit %}true{% else %}false{% endif %};
+            
+            if (isRegistration && window.parent && window.parent.clearAuroraQueue) {
+                window.parent.clearAuroraQueue();
+            } else if (isRegistration && window.clearAuroraQueue) {
+                window.clearAuroraQueue();
+            }
+
+            if (cropper) {
+                // Prevent default submission momentarily
+                e.preventDefault();
+
+                // Get the cropped canvas
+                const canvas = cropper.getCroppedCanvas({
+                    width: 256,
+                    height: 256,
+                });
+
+                // Convert canvas to Base64 String (PNG format)
+                const base64Data = canvas.toDataURL('image/png');
+
+                // Inject the Base64 string into the hidden Django form field
+                hiddenBase64Input.value = base64Data;
+
+                // Now submit the form manually
+                form.submit();
+            }
+        });
+    });
+</script>
+{% endblock %}

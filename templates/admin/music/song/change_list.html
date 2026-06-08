@@ -1,0 +1,1057 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+{% load music_tags %}
+
+{% block title %}Library Catalog{% endblock %}
+
+{% block extra_head %}
+<style>
+    .library-header {
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .library-nav {
+        display: flex;
+        align-items: center;
+        gap: 30px;
+        margin-bottom: 25px;
+    }
+
+    .empty-message {
+        text-align: center;
+        padding: 100px 20px;
+        color: rgba(255, 255, 255, 0.45);
+        text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+
+    .library-nav-item {
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.45);
+        text-decoration: none;
+        transition: all 0.3s;
+        position: relative;
+        padding-bottom: 8px;
+    }
+
+    .library-nav-item:hover {
+        color: #fff;
+        text-decoration: none;
+    }
+
+    .library-nav-item.active {
+        color: #fff;
+    }
+
+    .library-nav-item.active::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: var(--jewel-red);
+        border-radius: 2px;
+        box-shadow: 0 0 10px var(--aurora-shadow);
+    }
+
+    .submit-row input[name="_save"]:hover {
+        background: var(--aurora-bg-alpha-hover) !important;
+        color: var(--jewel-red-hover) !important;
+        border-color: var(--jewel-red) !important;
+        box-shadow: 0 5px 15px var(--aurora-shadow) !important;
+    }
+
+    .library-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .admin-search-preinit .song-list-body,
+    .admin-search-preinit .catalog-grid {
+        visibility: hidden;
+    }
+
+    .control-group {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    /* --- Aurora Custom Select Component --- */
+    .aurora-select-container {
+        position: relative;
+        min-width: 180px;
+        user-select: none;
+    }
+
+    .aurora-select-trigger {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #fff;
+        padding: 8px 18px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .aurora-select-container.open .aurora-select-trigger {
+        background-color: rgba(255, 255, 255, 0.12);
+        border-color: var(--jewel-red);
+        box-shadow: 0 0 15px rgba(255, 45, 75, 0.3);
+    }
+
+    .aurora-select-trigger:hover {
+        background-color: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.3);
+        transform: translateY(-1px);
+    }
+
+    .aurora-select-icon {
+        transition: transform 0.3s;
+        opacity: 0.7;
+    }
+
+    .aurora-select-container.open .aurora-select-icon {
+        transform: rotate(180deg);
+        opacity: 1;
+    }
+
+    .aurora-select-options {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        right: 0;
+        background: rgba(25, 25, 25, 0.95);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 8px;
+        z-index: 1000;
+        display: none;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        transform: translateY(-10px);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .aurora-select-container.open .aurora-select-options {
+        display: block;
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    .lib-tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        border-radius: 20px;
+        transition: all 0.3s;
+        color: rgba(255, 255, 255, 0.55);
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    .aurora-option {
+        padding: 10px 15px;
+        border-radius: 10px;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .aurora-option:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        padding-left: 18px;
+    }
+
+    .aurora-option.selected {
+        background: var(--jewel-red-dark) !important;
+        color: var(--jewel-red-hover) !important;
+        font-weight: 600;
+    }
+
+    .aurora-option.selected:hover {
+        background: var(--jewel-red-dark) !important;
+        color: var(--jewel-red-hover) !important;
+    }
+
+    #genre-dropdown .aurora-select-trigger {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease !important;
+    }
+
+    #genre-dropdown .aurora-select-trigger:hover {
+        transform: none !important;
+        box-shadow: 0 0 12px rgba(255, 45, 75, 0.18);
+    }
+
+    #genre-dropdown .aurora-select-options {
+        max-height: min(360px, calc(100vh - 360px));
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 45, 75, 0.72) rgba(255, 255, 255, 0.08);
+    }
+
+    #genre-dropdown .aurora-select-options::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #genre-dropdown .aurora-select-options::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 999px;
+        margin: 10px 0;
+    }
+
+    #genre-dropdown .aurora-select-options::-webkit-scrollbar-thumb {
+        background: rgba(255, 45, 75, 0.68);
+        border-radius: 999px;
+    }
+
+    #genre-dropdown .aurora-select-options::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 90, 110, 0.95);
+    }
+
+    /* Album/Artist Cards for their respective tabs */
+    .catalog-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 25px;
+    }
+
+    .catalog-card {
+        background: rgba(255, 255, 255, 0.18); 
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 15px;
+        text-align: center;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+
+    .catalog-card:hover {
+        background: rgba(255, 255, 255, 0.25);
+        transform: translateY(-5px);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .artist-avatar {
+        width: 90px; 
+        height: 90px;
+        margin: 0 auto 12px auto; 
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #fff;
+        background: linear-gradient(135deg, rgba(255, 45, 75, 1.0) 0%, rgba(160, 20, 35, 1.0) 100%);
+        box-shadow: 0 4px 20px rgba(255, 45, 75, 0.3);
+        user-select: none;
+        letter-spacing: -1px;
+    }
+
+    .catalog-card img {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .catalog-card h5 {
+        margin: 0 0 5px 0;
+        font-size: 1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .catalog-card p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .library-song-header {
+        display: grid !important;
+        grid-template-columns: 50px 1.5fr 110px 150px 1fr 60px !important;
+        column-gap: 20px;
+        align-items: center;
+        padding: 12px 20px;
+        background: transparent !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 13px;
+        letter-spacing: 1.5px;
+        opacity: 0.9;
+        color: rgba(255,255,255,0.9);
+        text-shadow: 0 1px 1px rgba(0,0,0,0.25);
+    }
+
+    .playlist-header-cell {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .playlist-header-cell.is-hoverable {
+        max-width: 100%;
+        padding: 7px 12px;
+        margin-left: -12px;
+        border-radius: 8px;
+        cursor: pointer;
+        color: inherit;
+        text-decoration: none;
+        transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .playlist-header-cell.is-hoverable:hover {
+        color: var(--jewel-red-hover);
+        background: rgba(255, 45, 75, 0.12);
+        text-decoration: none;
+    }
+
+    .playlist-header-cell.is-sortable {
+        width: calc(100% + 24px);
+    }
+
+    .playlist-header-sort-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin-left: 8px;
+        color: rgba(255, 255, 255, 0.55);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+        opacity: 0;
+        transform: translateX(-4px);
+        transition: opacity 0.18s ease, transform 0.18s ease;
+        pointer-events: none;
+    }
+
+    .playlist-header-cell.is-sortable:hover .playlist-header-sort-note,
+    .playlist-header-cell.is-sortable.is-sort-active .playlist-header-sort-note {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .playlist-header-sort-icon {
+        color: var(--jewel-red-hover);
+        font-size: 12px;
+        line-height: 1;
+    }
+
+    /* Album/Artist columns: always-on marquee */
+    .song-row .hover-marquee-wrapper a {
+        color: inherit;
+        text-decoration: none;
+    }
+    .song-row .hover-marquee-wrapper a:hover {
+        color: var(--jewel-red-hover);
+        text-decoration: none;
+    }
+    .song-row .hover-marquee-wrapper .search-highlight {
+        background: transparent !important;
+        display: inline !important;
+        padding: 0 !important;
+        line-height: inherit !important;
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+    }
+    .song-row .hover-marquee-wrapper.is-overflowing:hover .hover-marquee-content {
+        display: flex !important;
+        width: max-content !important;
+        animation-name: marquee !important;
+        animation-timing-function: linear !important;
+        animation-iteration-count: infinite !important;
+        overflow: visible !important;
+    }
+    .song-row .hover-marquee-wrapper.is-overflowing:hover .hover-marquee-content > .js-marquee-clone,
+    .song-row .hover-marquee-wrapper.is-overflowing:hover .hover-marquee-content > .js-marquee-spacer {
+        display: inline-block !important;
+    }
+    .song-row .hover-marquee-wrapper.is-overflowing:hover {
+        -webkit-mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent) !important;
+        mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent) !important;
+    }
+
+    /* Disable Hover transformations for Admin Library - By order */
+    .song-table-container .song-row:hover::before {
+        content: none !important;
+        display: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+    .song-row:hover .index-num {
+        display: flex !important;
+    }
+    .song-row:hover .index-play-btn {
+        display: none !important;
+    }
+    .song-row:hover .row-action-pill {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+    .song-row:hover .small-play-overlay {
+        display: none !important;
+        opacity: 0 !important;
+    }
+
+    /* Admin Action column styles */
+    .song-action-edit {
+        cursor: pointer;
+        opacity: 0.6;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        margin: 0 auto; /* Ensure centering in grid column */
+    }
+    .song-action-edit:hover {
+        opacity: 1;
+        color: var(--aurora-purple) !important;
+        transform: scale(1.2);
+        filter: drop-shadow(0 0 6px var(--aurora-purple-glow)) drop-shadow(0 0 14px var(--aurora-purple-glow));
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-entrance {% if is_search_page %}admin-search-preinit{% endif %}">
+<div class="library-header">
+    {% if is_search_page %}
+    <h2 style="margin-bottom: 20px; color: #fff;">Search Results for "{{ q }}"</h2>
+    {% endif %}
+    <div class="library-nav">
+        <a href="?tab=all_songs&q={{ q|urlencode }}&p=0" class="library-nav-item {% if active_tab == 'all_songs' %}active{% endif %}">All Songs</a>
+        <a href="?tab=all_albums&q={{ q|urlencode }}&p=0" class="library-nav-item {% if active_tab == 'all_albums' %}active{% endif %}">All Albums</a>
+        <a href="?tab=all_artists&q={{ q|urlencode }}&p=0" class="library-nav-item {% if active_tab == 'all_artists' %}active{% endif %}">All Artists</a>
+    </div>
+
+    <div class="library-controls" onclick="event.stopPropagation()">
+        <div class="control-group">
+            {% if active_tab == 'all_songs' %}
+            <!-- Custom Genre Dropdown -->
+            <div class="aurora-select-container" id="genre-dropdown">
+                <div class="aurora-select-trigger">
+                    <span class="trigger-text{% if current_genre|is_secondary_type %} secondary-type-label{% endif %}">
+                        {% if current_genre %}{{ current_genre }}{% else %}All Genres{% endif %}
+                    </span>
+                    <svg class="aurora-select-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="aurora-select-options">
+                    <div class="aurora-option {% if not current_genre %}selected{% endif %}" data-value="">All Genres</div>
+                    {% for g in genres %}
+                    <div class="aurora-option {% if current_genre == g %}selected{% endif %}{% if g|is_secondary_type %} secondary-type-label{% endif %}" data-value="{{ g }}">{{ g }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% if active_tab == 'all_albums' or active_tab == 'all_artists' %}
+            <div class="aurora-select-container" id="sort-dropdown">
+                <div class="aurora-select-trigger">
+                    <span class="trigger-text">
+                        {% if current_sort == '-name' %}Name Z-A
+                        {% elif current_sort == '-song_count' %}Most Songs
+                        {% elif current_sort == 'song_count' %}Fewest Songs
+                        {% elif current_sort == '-plays' %}Most Plays
+                        {% elif current_sort == 'plays' %}Fewest Plays
+                        {% else %}Name A-Z{% endif %}
+                    </span>
+                    <svg class="aurora-select-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="aurora-select-options">
+                    <div class="aurora-option {% if current_sort == 'name' %}selected{% endif %}" data-value="name">Name A-Z</div>
+                    <div class="aurora-option {% if current_sort == '-name' %}selected{% endif %}" data-value="-name">Name Z-A</div>
+                    <div class="aurora-option {% if current_sort == '-song_count' %}selected{% endif %}" data-value="-song_count">Most Songs</div>
+                    <div class="aurora-option {% if current_sort == 'song_count' %}selected{% endif %}" data-value="song_count">Fewest Songs</div>
+                    <div class="aurora-option {% if current_sort == '-plays' %}selected{% endif %}" data-value="-plays">Most Plays</div>
+                    <div class="aurora-option {% if current_sort == 'plays' %}selected{% endif %}" data-value="plays">Fewest Plays</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="text-right" style="color: rgba(255,255,255,0.8); font-size: 0.9rem; display: flex; align-items: center; gap: 10px;">
+            {% if active_tab == 'all_songs' %}
+            {{ page_obj.paginator.count }} {{ page_obj.paginator.count|pluralize:"Song,Songs" }}
+            <a href="{% url 'admin:music_song_add' %}?next={{ request.get_full_path|urlencode }}"
+               style="color: var(--jewel-red); font-size: 18px; font-weight: 700; text-decoration: none; line-height: 1; transition: all 0.3s; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--aurora-border-alpha); background: var(--aurora-bg-alpha);"
+               onclick="window.location.replace(this.href); return false;"
+               onmouseover="this.style.background='var(--aurora-bg-alpha-hover)'; this.style.borderColor='var(--jewel-red)'; this.style.boxShadow='0 5px 15px var(--aurora-shadow)'; this.style.color='var(--jewel-red-hover)';"
+               onmouseout="this.style.background='var(--aurora-bg-alpha)'; this.style.borderColor='var(--aurora-border-alpha)'; this.style.boxShadow='none'; this.style.color='var(--jewel-red)';" title="Add Song">+</a>
+            {% elif active_tab == 'all_albums' %}
+            {{ page_obj.paginator.count }} {{ page_obj.paginator.count|pluralize:"Album,Albums" }}
+            {% elif active_tab == 'all_artists' %}
+            {{ page_obj.paginator.count }} {{ page_obj.paginator.count|pluralize:"Artist,Artists" }}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if active_tab == 'all_songs' or active_tab == 'search_results' %}
+<!-- List View for Songs -->
+<div class="song-table-container">
+    <div class="library-song-header"
+        style="display: grid !important; grid-template-columns: 50px 1.5fr 110px 150px 1fr 60px !important; column-gap: 20px; align-items: center; padding: 12px 20px; font-weight: 700; color: #fff; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.9;">
+        <div style="display: flex; align-items: center; justify-content: center;">#</div>
+        <a class="playlist-header-cell is-hoverable is-sortable {% if current_sort == 'name' or current_sort == '-name' or current_sort == '-id' or current_sort == '-views' or current_sort == 'views' or current_sort == 'popular' %}is-sort-active{% endif %}"
+           href="?tab={{ active_tab }}&sort={% if current_sort == 'name' %}-name{% elif current_sort == '-name' %}-views{% elif current_sort == '-views' or current_sort == 'popular' %}views{% elif current_sort == 'views' %}-id{% elif current_sort == '-id' %}id{% else %}name{% endif %}&genre={{ current_genre|urlencode }}&q={{ q|urlencode }}&p=0"
+           onclick="adminNavigateNoEntrance(event, this)"
+           data-admin-sort-hover="title"
+           title="Sort by title">
+            Title
+            <span class="playlist-header-sort-note">
+                {% if current_sort == 'name' %}
+                    <span class="playlist-header-sort-icon">&uarr;</span><span>Title A-Z</span>
+                {% elif current_sort == '-name' %}
+                    <span class="playlist-header-sort-icon">&darr;</span><span>Title Z-A</span>
+                {% elif current_sort == '-views' or current_sort == 'popular' %}
+                    <span class="playlist-header-sort-icon">♨</span><span>Most Views</span>
+                {% elif current_sort == 'views' %}
+                    <span class="playlist-header-sort-icon">❄</span><span>Fewest Views</span>
+                {% elif current_sort == '-id' %}
+                    <span class="playlist-header-sort-icon">&#10022;</span><span>Newest</span>
+                {% else %}
+                    <span class="playlist-header-sort-icon">&varr;</span><span>Default</span>
+                {% endif %}
+            </span>
+        </a>
+        <div></div> <!-- Space for actions -->
+        <a class="playlist-header-cell is-hoverable is-sortable {% if current_sort == 'album' or current_sort == '-album' %}is-sort-active{% endif %}"
+           href="?tab={{ active_tab }}&sort={% if current_sort == 'album' %}-album{% elif current_sort == '-album' %}id{% else %}album{% endif %}&genre={{ current_genre|urlencode }}&q={{ q|urlencode }}&p=0"
+           onclick="adminNavigateNoEntrance(event, this)"
+           data-admin-sort-hover="album"
+           title="Sort by album">
+            Album
+            <span class="playlist-header-sort-note">
+                {% if current_sort == 'album' %}
+                    <span class="playlist-header-sort-icon">&uarr;</span>
+                {% elif current_sort == '-album' %}
+                    <span class="playlist-header-sort-icon">&darr;</span>
+                {% else %}
+                    <span class="playlist-header-sort-icon">&varr;</span>
+                {% endif %}
+            </span>
+        </a>
+        <a class="playlist-header-cell is-hoverable is-sortable {% if current_sort == 'artist' or current_sort == '-artist' %}is-sort-active{% endif %}"
+           href="?tab={{ active_tab }}&sort={% if current_sort == 'artist' %}-artist{% elif current_sort == '-artist' %}id{% else %}artist{% endif %}&genre={{ current_genre|urlencode }}&q={{ q|urlencode }}&p=0"
+           onclick="adminNavigateNoEntrance(event, this)"
+           data-admin-sort-hover="artist"
+           title="Sort by artist">
+            Artist
+            <span class="playlist-header-sort-note">
+                {% if current_sort == 'artist' %}
+                    <span class="playlist-header-sort-icon">&uarr;</span>
+                {% elif current_sort == '-artist' %}
+                    <span class="playlist-header-sort-icon">&darr;</span>
+                {% else %}
+                    <span class="playlist-header-sort-icon">&varr;</span>
+                {% endif %}
+            </span>
+        </a>
+        <div style="text-align: center;">Action</div>
+    </div>
+    <div class="song-list-body">
+    {% for song in page_obj %}
+    <div class="song-row" data-song-id="{{ song.id }}"
+        style="display: grid !important; grid-template-columns: 50px 1.5fr 110px 150px 1fr 60px !important; column-gap: 20px; align-items: center; padding: 12px 20px; border-radius: 12px; transition: all 0.2s; cursor: default; color: rgba(255, 255, 255, 0.8); font-size: 14px; height: 65px; overflow: hidden;">
+        <div class="song-index-col" style="color: rgba(255,255,255,0.95); position: relative; width: 50px; height: 35px; display: flex; align-items: center; justify-content: center;">
+            <span class="index-num">{{ forloop.counter|add:page_obj.start_index|add:-1|stringformat:"02d" }}</span>
+            <div class="index-play-btn" onclick="loadAndPlay('{{ song.download_link.url|escapejs }}', '{{ song.name|escapejs }}', '{{ song.arrangement|escapejs }}', '{{ song.cover.url|escapejs }}', '{{ song.id|escapejs }}')">
+                <svg class="icon-play" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+                </svg>
+                <svg class="icon-pause" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" style="display: none;">
+                    <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+                </svg>
+            </div>
+        </div>
+        <div class="song-cell-title"
+             style="display: flex; align-items: center; gap: 15px; font-weight: 600; overflow: hidden;">
+            <div style="position: relative; cursor: pointer; display: flex; align-items: center; flex-shrink: 0;" onclick="loadAndPlay('{{ song.download_link.url|escapejs }}', '{{ song.name|escapejs }}', '{{ song.arrangement|escapejs }}', '{{ song.cover.url|escapejs }}', '{{ song.id|escapejs }}')">
+                <img src="{{ song.cover.url }}" class="song-cell-img"
+                    alt="{{ song.name }}"
+                    style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover;"
+                    onerror="this.onerror=null; this.src='/media/covers/default_cover.jpg'">
+            </div>
+            <div class="song-title-wrapper" style="width: 100%; min-width: 0; overflow: hidden;">
+                <div class="song-title-marquee">
+                    <span class="song-title-text song-title-link">{{ song.name }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div>
+            <div class="row-action-pill is-3-buttons" onclick="event.stopPropagation()">
+                <div class="row-action-btn" title="Download" onclick="downloadSong('{{ song.download_link.url|escapejs }}', '{{ song.name|escapejs }}')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </div>
+                <div class="row-action-btn" onclick="event.stopPropagation(); window.triggerAddToPlaylist({{ song.id }})" title="Add to Playlist">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 12H3"></path>
+                        <path d="M16 6H3"></path>
+                        <path d="M16 18H3"></path>
+                        <path d="M18 9v6"></path>
+                        <path d="M21 12h-6"></path>
+                    </svg>
+                </div>
+                <div class="row-action-btn" onclick="event.stopPropagation();" title="Comment">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="hover-marquee-wrapper">
+            <div class="hover-marquee-content">
+                <a href="{% url 'admin:music_song_album_detail' song.album|default:'Unknown Album' %}">{{ song.album|default:"Unknown Album" }}</a>
+            </div>
+        </div>
+
+        <div class="hover-marquee-wrapper">
+            <div class="hover-marquee-content">
+                {% for artist_name in song.arrangement|default:"Unknown Artist"|split_artists %}
+                    <a href="{% url 'admin:music_song_artist_detail' artist_name %}">{{ artist_name }}</a>{% if not forloop.last %}<span class="artist-separator">/</span>{% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Admin Action Column: Edit Song -->
+        <div style="text-align: center; display: flex; align-items: center; justify-content: center;"
+             class="song-action-edit" 
+             title="Edit Song"
+             onclick="event.stopPropagation(); window.location.replace('{{ song.id }}/change/?next={{ request.get_full_path|urlencode }}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-center" style="padding: 100px 0; color: rgba(255, 255, 255, 0.6); text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+        <div style="margin-bottom: 20px; opacity: 1;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="var(--jewel-red)" viewBox="0 0 16 16" style="filter: drop-shadow(0 4px 15px rgba(160, 20, 35, 0.4));">
+                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+            </svg>
+        </div>
+        <h3 style="font-weight: 700; letter-spacing: 0.5px;">No songs found matching your search.</h3>
+    </div>
+    {% endfor %}
+    </div>
+
+    <!-- Premium Glassmorphic Pagination (Pushed to bottom by min-height) -->
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="pagination-wrapper">
+        <div class="pagination-container" style="margin-top: 0;">
+            <div class="pagination-glass">
+                {% if page_obj.has_previous %}
+                <a href="?tab={{ active_tab }}&sort={{ current_sort }}&genre={{ current_genre }}&q={{ q }}&p=0" class="page-link-btn" title="First Page">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline>
+                    </svg>
+                </a>
+                {% else %}
+                <div class="page-link-btn disabled">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline>
+                    </svg>
+                </div>
+                {% endif %}
+
+                {% if page_obj.has_previous %}
+                <a href="?tab={{ active_tab }}&sort={{ current_sort }}&genre={{ current_genre }}&q={{ q }}&p={{ page_obj.previous_page_number|add:-1 }}" class="page-link-btn" title="Previous Page">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </a>
+                {% else %}
+                <div class="page-link-btn disabled">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </div>
+                {% endif %}
+
+                <div class="page-info-box">
+                    <input class="page-jump-input" type="number" min="1" max="{{ page_obj.paginator.num_pages }}" value="{{ page_obj.number }}" aria-label="Page number" data-page-param="p" data-zero-indexed="true" data-total-pages="{{ page_obj.paginator.num_pages }}">
+                    <span style="opacity: 0.2; margin: 0 4px;">/</span>
+                    <span class="page-info-total">{{ page_obj.paginator.num_pages|stringformat:"02d" }}</span>
+                </div>
+
+                {% if page_obj.has_next %}
+                <a href="?tab={{ active_tab }}&sort={{ current_sort }}&genre={{ current_genre }}&q={{ q }}&p={{ page_obj.next_page_number|add:-1 }}" class="page-link-btn" title="Next Page">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </a>
+                {% else %}
+                <div class="page-link-btn disabled">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
+                {% endif %}
+
+                {% if page_obj.has_next %}
+                <a href="?tab={{ active_tab }}&sort={{ current_sort }}&genre={{ current_genre }}&q={{ q }}&p={{ page_obj.paginator.num_pages|add:-1 }}" class="page-link-btn" title="Last Page">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <polyline points="6 17 11 12 6 7"></polyline><polyline points="13 17 18 12 13 7"></polyline>
+                    </svg>
+                </a>
+                {% else %}
+                <div class="page-link-btn disabled">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <polyline points="6 17 11 12 6 7"></polyline><polyline points="13 17 18 12 13 7"></polyline>
+                    </svg>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% elif active_tab == 'all_albums' %}
+<div class="catalog-grid">
+    {% for album in albums %}
+    <div class="catalog-card" onclick="window.location.href='{% url 'admin:music_song_album_detail' album.album %}'">
+        <img src="/media/{{ album.cover }}" onerror="this.onerror=null; this.src='/media/covers/default_cover.jpg'">
+        <h5>{{ album.album }}</h5>
+        <p>{{ album.song_count }} {{ album.song_count|pluralize:"Song,Songs" }}</p>
+    </div>
+    {% empty %}
+    <div class="text-center" style="grid-column: 1 / -1; padding: 100px 0; color: rgba(255, 255, 255, 0.6); text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+        <div style="margin-bottom: 20px; opacity: 1;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="var(--jewel-red)" viewBox="0 0 16 16" style="filter: drop-shadow(0 4px 15px rgba(160, 20, 35, 0.4));">
+                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+            </svg>
+        </div>
+        <h3 style="font-weight: 700; letter-spacing: 0.5px;">No albums found matching your search.</h3>
+    </div>
+    {% endfor %}
+</div>
+
+{% elif active_tab == 'all_artists' %}
+<div class="catalog-grid">
+    {% for artist in artists %}
+    <div class="catalog-card" onclick="window.location.href='{% url 'admin:music_song_artist_detail' artist.arrangement %}'">
+        <div class="artist-avatar" aria-label="{{ artist.arrangement }}">{{ artist.arrangement|slice:":1" }}</div>
+        <h5>{{ artist.arrangement }}</h5>
+        <p>{{ artist.song_count }} {{ artist.song_count|pluralize:"Song,Songs" }} | {{ artist.views }}
+            {{artist.views|pluralize:"Play,Plays" }}</p>
+    </div>
+    {% empty %}
+    <div class="text-center" style="grid-column: 1 / -1; padding: 100px 0; color: rgba(255, 255, 255, 0.6); text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+        <div style="margin-bottom: 20px; opacity: 1;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="var(--jewel-red)" viewBox="0 0 16 16" style="filter: drop-shadow(0 4px 15px rgba(160, 20, 35, 0.4));">
+                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+            </svg>
+        </div>
+        <h3 style="font-weight: 700; letter-spacing: 0.5px;">No artists found matching your search.</h3>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if active_tab == 'all_albums' or active_tab == 'all_artists' %}
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="pagination-wrapper">
+    <div class="pagination-container" style="margin-top: 0;">
+        <div class="pagination-glass">
+            {% if page_obj.has_previous %}
+            <a href="?tab={{ active_tab }}&sort={{ current_sort }}&genre={{ current_genre }}&q={{ q }}&page_size={{ catalog_page_size }}&p=0" class="page-link-btn" title="First Page">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline>
+                </svg>
+            </a>
+            {% else %}
+            <div class="page-link-btn disabled">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline>
+                </svg>
+            </div>
+            {% endif %}
+
+            {% if page_obj.has_previous %}
+            <a href="?tab={{ active_tab }}&sort={{ current_sort }}&genre={{ current_genre }}&q={{ q }}&page_size={{ catalog_page_size }}&p={{ page_obj.previous_page_number|add:-1 }}" class="page-link-btn" title="Previous Page">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
+            {% else %}
+            <div class="page-link-btn disabled">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </div>
+            {% endif %}
+
+            <div class="page-info-box">
+                <input class="page-jump-input" type="number" min="1" max="{{ page_obj.paginator.num_pages }}" value="{{ page_obj.number }}" aria-label="Page number" data-page-param="p" data-zero-indexed="true" data-total-pages="{{ page_obj.paginator.num_pages }}">
+                <span style="opacity: 0.2; margin: 0 4px;">/</span>
+                <span class="page-info-total">{{ page_obj.paginator.num_pages|stringformat:"02d" }}</span>
+            </div>
+
+            {% if page_obj.has_next %}
+            <a href="?tab={{ active_tab }}&sort={{ current_sort }}&genre={{ current_genre }}&q={{ q }}&page_size={{ catalog_page_size }}&p={{ page_obj.next_page_number|add:-1 }}" class="page-link-btn" title="Next Page">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </a>
+            {% else %}
+            <div class="page-link-btn disabled">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </div>
+            {% endif %}
+
+            {% if page_obj.has_next %}
+            <a href="?tab={{ active_tab }}&sort={{ current_sort }}&genre={{ current_genre }}&q={{ q }}&page_size={{ catalog_page_size }}&p={{ page_obj.paginator.num_pages|add:-1 }}" class="page-link-btn" title="Last Page">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="6 17 11 12 6 7"></polyline><polyline points="13 17 18 12 13 7"></polyline>
+                </svg>
+            </a>
+            {% else %}
+            <div class="page-link-btn disabled">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="6 17 11 12 6 7"></polyline><polyline points="13 17 18 12 13 7"></polyline>
+                </svg>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<script>
+    function adminNavigateNoEntrance(event, anchor) {
+        event.preventDefault();
+        sessionStorage.setItem('no_entrance_anim', '1');
+        window.location.replace(anchor.getAttribute('href'));
+    }
+
+    // Aurora Custom Select Navigation Logic - Immediate execution for SPA support
+    (function() {
+        const setupDropdown = (containerId, paramName) => {
+            const container = document.getElementById(containerId);
+            if (!container || container.dataset.initialized) return;
+
+            const trigger = container.querySelector('.aurora-select-trigger');
+            const options = container.querySelectorAll('.aurora-option');
+
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Close other dropdowns
+                document.querySelectorAll('.aurora-select-container').forEach(c => {
+                    if (c !== container) c.classList.remove('open');
+                });
+                container.classList.toggle('open');
+            });
+
+            options.forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const value = opt.getAttribute('data-value');
+                    const url = new URL(window.location.href);
+                    url.searchParams.set(paramName, value);
+                    syncCatalogPageSize(url);
+                    // Reset page to 1
+                    url.searchParams.set('p', '0');
+                    
+                    const replaceHistory = paramName === 'sort';
+                    if (window.navigatePage) {
+                        window.navigatePage(url.href, replaceHistory ? 'replace' : true);
+                    } else if (replaceHistory) {
+                        window.location.replace(url.href);
+                    } else {
+                        window.location.href = url.href;
+                    }
+                });
+            });
+            
+            container.dataset.initialized = "true";
+        };
+
+        const getCatalogPageSize = () => {
+            const grid = document.querySelector('.catalog-grid');
+            const measureTarget = grid || document.querySelector('.page-entrance');
+            if (!measureTarget) return null;
+
+            const width = measureTarget.getBoundingClientRect().width;
+            const styles = grid ? window.getComputedStyle(grid) : null;
+            const gap = styles ? (parseFloat(styles.columnGap || styles.gap) || 25) : 25;
+            const minCardWidth = 180;
+            const columns = Math.max(1, Math.floor((width + gap) / (minCardWidth + gap)));
+            return Math.max(8, Math.min(60, columns * 3));
+        };
+
+        const syncCatalogPageSize = (url) => {
+            const pageSize = getCatalogPageSize();
+            if (pageSize) url.searchParams.set('page_size', String(pageSize));
+        };
+
+        const syncCatalogPageSizeLinks = () => {
+            const pageSize = getCatalogPageSize();
+            if (!pageSize) return;
+
+            document.querySelectorAll('.pagination-glass a.page-link-btn, .library-nav a').forEach(link => {
+                const url = new URL(link.getAttribute('href'), window.location.href);
+                url.searchParams.set('page_size', String(pageSize));
+                link.setAttribute('href', url.pathname + url.search);
+            });
+        };
+
+        const bindCatalogNavPageSize = () => {
+            document.querySelectorAll('.library-nav a').forEach(link => {
+                if (link.dataset.catalogPageSizeBound) return;
+                link.dataset.catalogPageSizeBound = 'true';
+                link.addEventListener('click', (event) => {
+                    const url = new URL(link.getAttribute('href'), window.location.href);
+                    const tab = url.searchParams.get('tab');
+                    if (tab === 'all_albums' || tab === 'all_artists') {
+                        const pageSize = getCatalogPageSize();
+                        if (pageSize) url.searchParams.set('page_size', String(pageSize));
+                        url.searchParams.set('p', '0');
+                    } else {
+                        url.searchParams.delete('page_size');
+                        url.searchParams.set('p', '0');
+                    }
+
+                    event.preventDefault();
+                    window.location.href = url.pathname + url.search;
+                });
+            });
+        };
+
+        const bindCatalogPageSizeResize = () => {
+            if (window.adminCatalogPageSizeResizeBound) return;
+            window.adminCatalogPageSizeResizeBound = true;
+
+            let resizeTimer = null;
+            window.addEventListener('resize', () => {
+                window.clearTimeout(resizeTimer);
+                resizeTimer = window.setTimeout(() => {
+                    const pageSize = getCatalogPageSize();
+                    if (!pageSize) return;
+
+                    const url = new URL(window.location.href);
+                    const tab = url.searchParams.get('tab');
+                    const isCatalogTab = tab === 'all_albums' || tab === 'all_artists';
+                    if (!isCatalogTab) return;
+
+                    const currentPageSize = parseInt(url.searchParams.get('page_size') || '0', 10);
+                    if (currentPageSize === pageSize) return;
+
+                    url.searchParams.set('page_size', String(pageSize));
+                    if (window.navigatePage) window.navigatePage(url.href, 'replace');
+                    else window.location.replace(url.href);
+                }, 220);
+            });
+        };
+
+        setupDropdown('genre-dropdown', 'genre');
+        setupDropdown('sort-dropdown', 'sort');
+        syncCatalogPageSizeLinks();
+        bindCatalogNavPageSize();
+        bindCatalogPageSizeResize();
+
+        if (!window.selectOutsideClickBound) {
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.aurora-select-container').forEach(c => c.classList.remove('open'));
+            });
+            window.selectOutsideClickBound = true;
+        }
+    })();
+
+    // Search keyword highlighting
+    function applyAdminHighlighting() {
+        const q = new URLSearchParams(window.location.search).get('q');
+        if (!q) return;
+        const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escaped})`, 'gi');
+        const selectors = ['.song-title-text', '.hover-marquee-content', '.catalog-card h5'];
+        selectors.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+                if (el.innerHTML.includes('search-highlight')) return;
+                if (sel === '.hover-marquee-content') {
+                    el.querySelectorAll('span, a').forEach(s => {
+                        regex.lastIndex = 0;
+                        if (!s.innerHTML.includes('search-highlight') && regex.test(s.innerHTML)) {
+                            regex.lastIndex = 0;
+                            s.innerHTML = s.innerHTML.replace(regex, '<span class="search-highlight">$1</span>');
+                        }
+                    });
+                } else {
+                    regex.lastIndex = 0;
+                    if (regex.test(el.innerHTML)) {
+                        regex.lastIndex = 0;
+                        el.innerHTML = el.innerHTML.replace(regex, '<span class="search-highlight">$1</span>');
+                    }
+                }
+            });
+        });
+    }
+
+    // Keep admin list marquee behavior aligned with the shared admin base implementation.
+    function initAdminMarquees() {
+        if (window.updateMarquees) window.updateMarquees();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        applyAdminHighlighting();
+        initAdminMarquees();
+        requestAnimationFrame(() => {
+            document.querySelectorAll('.admin-search-preinit').forEach(el => {
+                el.classList.remove('admin-search-preinit');
+            });
+        });
+    });
+</script>
+</div>
+{% endblock %}

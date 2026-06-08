@@ -1,0 +1,986 @@
+{% extends 'music/base.html' %}
+{% load static %}
+
+{% block title %}Artist - {{ artist.name }}{% endblock %}
+
+{% block content %}
+<div class="playlist-detail-container page-entrance">
+    
+    <div class="playlist-detail-header">
+        <div class="playlist-detail-cover" style="display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #00C78A 0%, #005f43 100%); color: #fff; font-size: 3.5rem; font-weight: 800; text-transform: uppercase; user-select: none;">
+            {{ artist.name|slice:":1" }}
+        </div>
+        <div class="playlist-detail-info">
+            <h1 class="playlist-detail-title">{{ artist.name }}</h1>
+            <div class="playlist-detail-meta">
+                <span>{{ artist.song_count }} {{ artist.song_count|pluralize:"Song,Songs" }}</span>
+                <span style="opacity: 0.5">•</span>
+                <span>{{ artist.album_count }} {{ artist.album_count|pluralize:"Album,Albums" }}</span>
+            </div>
+            <div class="playlist-detail-actions">
+                <button class="action-btn btn-play-all {% if not artist.songs %}disabled{% endif %}" onclick="playPlaylistSongs([
+                    {% for s in artist.songs %}
+                    {
+                        url: '{{ s.file_url|escapejs }}',
+                        title: '{{ s.title|escapejs }}',
+                        artist: '{{ artist.name|escapejs }}',
+                        cover: '{{ s.cover|escapejs }}',
+                        id: '{{ s.id }}',
+                        album: '{{ s.album|escapejs }}',
+                        isLiked: {% if s.is_liked %}true{% else %}false{% endif %}
+                    }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ])">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802 0 0 1 0 1.393z"/>
+                    </svg>
+                    Play All
+                </button>
+                <button class="action-btn btn-glass {% if not artist.songs %}disabled{% endif %}" onclick="showHubToast('Downloading artist collection...')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.1 0 1 0-.708.708l3 3z"/>
+                    </svg>
+                    Download
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Artist Tabs -->
+    <div class="artist-tabs" style="display: flex; gap: 30px; margin: 30px 5px 5px 5px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+        <a href="?tab=songs" class="artist-tab-item {% if active_tab == 'songs' %}active{% endif %}" style="color: rgba(255, 255, 255, 0.5); font-size: 1.1rem; font-weight: 600; text-decoration: none; padding-bottom: 12px; position: relative; transition: all 0.3s;">Songs</a>
+        <a href="?tab=albums" class="artist-tab-item {% if active_tab == 'albums' %}active{% endif %}" style="color: rgba(255, 255, 255, 0.5); font-size: 1.1rem; font-weight: 600; text-decoration: none; padding-bottom: 12px; position: relative; transition: all 0.3s;">Albums</a>
+    </div>
+<style>
+    /* Reduce gap between tabs and song table */
+    .song-table-container {
+        margin-top: 15px !important;
+    }
+
+    .artist-tab-item:hover { color: #fff !important; }
+    .artist-tab-item.active { color: #fff !important; }
+    .artist-tab-item.active::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: var(--aurora-green);
+        border-radius: 2px;
+        box-shadow: 0 0 15px var(--aurora-shadow);
+    }
+
+    /* Grid for albums */
+    .catalog-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 25px;
+    }
+
+    .catalog-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 15px;
+        text-align: center;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+
+    .catalog-card:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-5px);
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .catalog-card img {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .catalog-card h5 {
+        margin: 0 0 5px 0;
+        font-size: 1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #fff;
+    }
+
+    .catalog-card p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.6);
+    }
+    
+    .playlist-song-header {
+        display: grid !important;
+        grid-template-columns: 50px 1.5fr 110px 1fr 70px !important;
+        column-gap: 20px;
+        align-items: center;
+        padding: 12px 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+        color: rgba(255,255,255,0.4);
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .playlist-header-cell {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .playlist-header-cell.is-hoverable {
+        max-width: 100%;
+        padding: 7px 12px;
+        margin-left: -12px;
+        border-radius: 8px;
+        cursor: pointer;
+        color: inherit;
+        text-decoration: none;
+        transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+    .playlist-header-cell.is-hoverable:hover {
+        color: var(--aurora-green-hover);
+        background: rgba(0, 199, 138, 0.12);
+        box-shadow: 0 0 14px rgba(0, 199, 138, 0.18);
+        transform: translateY(-1px);
+    }
+    .playlist-header-cell.is-sortable {
+        width: calc(100% + 24px);
+    }
+    .playlist-header-sort-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin-left: 8px;
+        color: rgba(255, 255, 255, 0.55);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+        opacity: 0;
+        transform: translateX(-4px);
+        transition: opacity 0.18s ease, transform 0.18s ease;
+        pointer-events: none;
+    }
+    .playlist-header-cell.is-sortable:hover .playlist-header-sort-note,
+    .playlist-header-cell.is-sortable.is-sort-active .playlist-header-sort-note {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    .playlist-header-sort-icon {
+        color: var(--aurora-green-hover);
+        font-size: 12px;
+    }
+    .artist-load-more {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        min-height: 70px;
+        color: rgba(255, 255, 255, 0.55);
+        font-size: 13px;
+        font-weight: 600;
+    }
+    .artist-load-spinner {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.16);
+        border-top-color: var(--aurora-green);
+        animation: artistLoadSpin 0.8s linear infinite;
+    }
+    .artist-load-more.is-hidden {
+        display: none;
+    }
+    @keyframes artistLoadSpin {
+        to { transform: rotate(360deg); }
+    }
+
+        .playlist-detail-container:not(.batch-mode) .song-row {
+            grid-template-columns: 50px 1.5fr 110px 1fr 70px !important;
+        }
+
+        .playlist-detail-container.batch-mode .song-row {
+            transform: none !important;
+            transition: background 0.22s ease, box-shadow 0.22s ease;
+        }
+        .batch-actions-btn {
+            width: 42px;
+            min-width: 42px;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            justify-content: center;
+        }
+        .playlist-detail-container.batch-mode {
+            padding-bottom: 90px;
+        }
+        .playlist-detail-container.batch-mode .playlist-detail-header,
+        .playlist-detail-container.batch-mode .artist-tabs {
+            display: none !important;
+        }
+        .playlist-detail-container.batch-mode .playlist-song-header {
+            display: none !important;
+        }
+        .batch-mode-toolbar {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            margin: 0 0 24px 0;
+            padding: 8px 0 18px 0;
+        }
+        .playlist-detail-container.batch-mode .batch-mode-toolbar {
+            display: flex;
+        }
+        .batch-toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
+        }
+        .batch-btn {
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.42);
+            padding: 0 18px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: default;
+            transition: background 0.28s ease, color 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease, transform 0.28s ease, filter 0.28s ease;
+        }
+
+        .batch-btn:disabled,
+        .batch-btn:disabled:hover {
+            cursor: not-allowed;
+        }
+
+        .batch-btn.icon-only {
+            width: 48px;
+            padding: 0;
+            background: var(--aurora-bg-alpha);
+            color: var(--aurora-green);
+            border-color: var(--aurora-border-alpha);
+            box-shadow: 0 0 14px rgba(0, 199, 138, 0.08);
+        }
+
+        .batch-btn.is-enabled {
+            cursor: pointer;
+            color: rgba(255,255,255,0.85);
+            background: rgba(255,255,255,0.11);
+            border-color: rgba(255,255,255,0.16);
+        }
+
+        .batch-btn.is-enabled:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.16);
+            border-color: rgba(255,255,255,0.26);
+            box-shadow: 0 0 14px rgba(255,255,255,0.08);
+            transform: translateY(-1px);
+        }
+
+        .batch-btn.icon-only.is-enabled {
+            color: var(--aurora-green) !important;
+            background: rgba(0, 199, 138, 0.18) !important;
+            border-color: rgba(0, 199, 138, 0.52) !important;
+            box-shadow: 0 0 14px rgba(0, 199, 138, 0.16) !important;
+            backdrop-filter: blur(5px);
+        }
+
+        .batch-btn.icon-only.is-enabled:hover {
+            color: var(--aurora-green-hover) !important;
+            background: rgba(0, 199, 138, 0.26) !important;
+            border-color: var(--aurora-green) !important;
+            box-shadow: 0 5px 15px var(--aurora-shadow) !important;
+            transform: translateY(-2px);
+        }
+
+        .batch-btn.is-danger {
+            color: rgba(255, 68, 68, 0.56);
+            background: rgba(255, 68, 68, 0.08);
+            border-color: rgba(255, 68, 68, 0.16);
+        }
+
+        .batch-btn.is-danger.is-enabled {
+            color: #ff4444;
+            background: rgba(255, 68, 68, 0.12);
+            border-color: rgba(255, 68, 68, 0.34);
+            box-shadow: 0 0 14px rgba(255, 68, 68, 0.12);
+        }
+
+        .batch-btn.is-danger.is-enabled:hover {
+            color: #ff4444;
+            background: rgba(255, 68, 68, 0.20);
+            border-color: #ff5c5c;
+            box-shadow: 0 0 22px rgba(255, 68, 68, 0.30);
+            transform: translateY(-1px);
+        }
+
+        .batch-done-btn {
+            height: 44px;
+            min-width: 98px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.07);
+            color: rgba(255,255,255,0.86);
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.28s ease, border-color 0.28s ease, color 0.28s ease, box-shadow 0.28s ease, transform 0.28s ease;
+        }
+
+        .batch-done-btn:hover {
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,255,255,0.24);
+            color: #fff;
+            box-shadow: 0 0 14px rgba(255,255,255,0.08);
+            transform: translateY(-1px);
+        }
+        .batch-select-row {
+            display: none;
+            grid-template-columns: 50px 1.5fr 1fr 70px !important;
+            column-gap: 20px;
+            align-items: center;
+            padding: 10px 20px 14px 20px;
+            color: rgba(255,255,255,0.9);
+            opacity: 0.9;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.25);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            font-weight: 600;
+        }
+
+        .playlist-detail-container.batch-mode .batch-select-row {
+            display: grid !important;
+        }
+        .playlist-detail-container.batch-mode .song-row {
+            grid-template-columns: 50px 1.5fr 1fr 70px !important;
+        }
+        .batch-checkbox {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            border: 1.5px solid rgba(255,255,255,0.34);
+            background: rgba(255,255,255,0.06);
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.12);
+            cursor: pointer;
+            display: inline-grid;
+            place-content: center;
+            transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+        }
+        .batch-checkbox::after {
+            content: "";
+            width: 10px;
+            height: 6px;
+            border-left: 2px solid #fff;
+            border-bottom: 2px solid #fff;
+            transform: rotate(-45deg) scale(0);
+            transform-origin: center;
+            margin-top: -2px;
+            transition: transform 0.16s ease;
+        }
+        .batch-checkbox:hover {
+            border-color: rgba(0, 255, 179, 0.55);
+            background: rgba(0, 255, 179, 0.10);
+            box-shadow: 0 0 14px rgba(0, 255, 179, 0.18);
+        }
+        .batch-checkbox:checked {
+            background: rgba(0, 255, 179, 0.56);
+            border-color: var(--aurora-green-hover);
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.10), 0 0 12px rgba(0, 255, 179, 0.20);
+        }
+        .batch-checkbox:checked::after {
+            transform: rotate(-45deg) scale(1);
+        }
+        .batch-checkbox:indeterminate {
+            background: rgba(0, 255, 179, 0.56);
+            border-color: var(--aurora-green-hover);
+        }
+        .batch-checkbox:indeterminate::after {
+            width: 10px;
+            height: 0;
+            border-left: 0;
+            border-bottom: 2px solid #fff;
+            transform: scale(1);
+            margin-top: 0;
+        }
+        .batch-row-check {
+            display: none !important;
+            align-items: center;
+            justify-content: center;
+        }
+        .playlist-detail-container.batch-mode .batch-row-check {
+            display: flex !important;
+        }
+        .playlist-detail-container.batch-mode .song-index-col {
+            display: none !important;
+        }
+        .playlist-detail-container.batch-mode .song-row-actions,
+        .playlist-detail-container.batch-mode .row-action-pill {
+            display: none !important;
+        }
+
+        .batch-refreshing {
+            animation: fadeInUp 0.36s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+
+        </style>
+
+<script>
+    window.enterBatchMode = function() {
+        const container = document.querySelector('.playlist-detail-container');
+        if (!container || container.classList.contains('batch-mode')) return;
+        container.classList.add('batch-mode');
+        const selRow = container.querySelector('.batch-select-row');
+        if (selRow) selRow.style.display = 'grid';
+        window.triggerBatchRefreshAnimation();
+        window.updateBatchState();
+    };
+
+    window.exitBatchMode = function() {
+        const container = document.querySelector('.playlist-detail-container');
+        if (!container) return;
+        container.classList.remove('batch-mode');
+        const selRow = container.querySelector('.batch-select-row');
+        if (selRow) selRow.style.display = 'none';
+        container.querySelectorAll('.batch-song-checkbox').forEach(cb => cb.checked = false);
+        window.triggerBatchRefreshAnimation();
+        window.updateBatchState();
+    };
+
+    window.triggerBatchRefreshAnimation = function() {
+        const table = document.querySelector('.song-table-container');
+        if (!table) return;
+        table.classList.remove('batch-refreshing');
+        void table.offsetWidth; // Force reflow
+        table.classList.add('batch-refreshing');
+        window.setTimeout(() => table.classList.remove('batch-refreshing'), 420);
+    };
+
+    window.updateBatchState = function() {
+        const container = document.querySelector('.playlist-detail-container');
+        if (!container) return;
+
+        const checkboxes = Array.from(container.querySelectorAll('.batch-song-checkbox'));
+        const selected = checkboxes.filter(cb => cb.checked);
+        const selectedCount = selected.length;
+        const selectAll = document.getElementById('batch-select-all');
+        const label = document.getElementById('batch-select-label');
+
+        if (selectAll) {
+            selectAll.checked = selectedCount > 0 && selectedCount === checkboxes.length;
+            selectAll.indeterminate = selectedCount > 0 && selectedCount < checkboxes.length;
+        }
+
+        if (label) {
+            label.textContent = selectedCount
+                ? `${selectedCount} selected`
+                : `Select all (${checkboxes.length} songs)`;
+        }
+
+        container.querySelectorAll('.batch-action').forEach(btn => {
+            btn.disabled = selectedCount === 0;
+            btn.classList.toggle('is-enabled', selectedCount > 0);
+        });
+    };
+
+    window.initBatchMode = function() {
+        const container = document.querySelector('.playlist-detail-container');
+        if (!container) return;
+
+        let lastChecked = null;
+
+        const selectAllCb = container.querySelector('#batch-select-all');
+        if (selectAllCb) {
+            selectAllCb.addEventListener('click', (e) => {
+                const checkboxes = Array.from(container.querySelectorAll('.batch-song-checkbox'));
+                const isChecked = e.target.checked;
+                checkboxes.forEach(cb => {
+                    if (cb.offsetParent !== null) { // only visible
+                        cb.checked = isChecked;
+                    }
+                });
+                window.updateBatchState();
+            });
+        }
+
+        const songCheckboxes = container.querySelectorAll('.batch-song-checkbox');
+        songCheckboxes.forEach(cb => {
+            cb.addEventListener('click', (e) => {
+                if (!lastChecked) {
+                    lastChecked = cb;
+                    window.updateBatchState();
+                    return;
+                }
+                if (e.shiftKey) {
+                    const cbArray = Array.from(songCheckboxes);
+                    const start = cbArray.indexOf(cb);
+                    const end = cbArray.indexOf(lastChecked);
+                    const [min, max] = [Math.min(start, end), Math.max(start, end)];
+                    for (let i = min; i <= max; i++) {
+                        if (cbArray[i].offsetParent !== null) {
+                            cbArray[i].checked = lastChecked.checked;
+                        }
+                    }
+                }
+                lastChecked = cb;
+                window.updateBatchState();
+            });
+        });
+
+        // Delegate row clicks
+        const tableContainer = container.querySelector('.song-table-container');
+        if (tableContainer) {
+            tableContainer.addEventListener('click', (e) => {
+                if (!container.classList.contains('batch-mode')) return;
+                const row = e.target.closest('.song-row');
+                if (!row) return;
+                if (e.target.closest('a, button, input')) return; // Ignore native interactive elements
+
+                const cb = row.querySelector('.batch-song-checkbox');
+                if (cb) {
+                    cb.checked = !cb.checked;
+                    
+                    if (e.shiftKey && lastChecked) {
+                        const cbArray = Array.from(songCheckboxes);
+                        const start = cbArray.indexOf(cb);
+                        const end = cbArray.indexOf(lastChecked);
+                        const [min, max] = [Math.min(start, end), Math.max(start, end)];
+                        for (let i = min; i <= max; i++) {
+                            if (cbArray[i].offsetParent !== null) {
+                                cbArray[i].checked = cb.checked;
+                            }
+                        }
+                    }
+                    lastChecked = cb;
+                    window.updateBatchState();
+                }
+            });
+        }
+
+        // Batch Actions logic
+        container.querySelectorAll('.batch-action').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (btn.disabled) return;
+                const action = btn.dataset.action;
+                const checkedRows = Array.from(container.querySelectorAll('.song-row[data-song-id]'))
+                    .filter(row => row.querySelector('.batch-song-checkbox').checked);
+                const ids = checkedRows.map(r => r.dataset.songId);
+                
+                if (action === 'play') {
+                    // Collect song data directly from the DOM using onclick attributes
+                    let songs = [];
+                    checkedRows.forEach(row => {
+                        const playBtn = row.querySelector('.index-play-btn');
+                        if (playBtn) {
+                            const onclickStr = playBtn.getAttribute('onclick');
+                            // onclick="loadAndPlay('url', 'title', 'artist', 'cover', id)"
+                            const match = onclickStr.match(/loadAndPlay\(['"](.*?)['"],\s*['"](.*?)['"],\s*['"](.*?)['"],\s*['"](.*?)['"],\s*(\d+)/);
+                            if (match) {
+                                songs.push({
+                                    url: match[1],
+                                    title: match[2],
+                                    artist: match[3],
+                                    cover: match[4],
+                                    id: match[5],
+                                    isLiked: row.querySelector('.song-row-heart').classList.contains('is-liked')
+                                });
+                            }
+                        }
+                    });
+                    
+                    if (songs.length > 0) {
+                        window.playerQueue = [];
+                        songs.forEach(s => window.addToQueue(s, false));
+                        window.queueIndex = 0;
+                        const first = songs[0];
+                        loadAndPlay(first.url, first.title, first.artist, first.cover, first.id, true);
+                        window.exitBatchMode();
+                    }
+                } else if (action === 'playlist') {
+                    if (window.triggerAddMultipleToPlaylist) {
+                        window.triggerAddMultipleToPlaylist(ids);
+                        window.exitBatchMode();
+                    }
+                } else if (action === 'download') {
+                    const url = `/api/download-songs/?ids=${ids.join(',')}`;
+                    window.location.href = url;
+                }
+            });
+        });
+
+        window.updateBatchState();
+    };
+
+    const oldInitFeatures = window.initPageFeatures;
+    window.initPageFeatures = function() {
+        if (typeof oldInitFeatures === 'function') oldInitFeatures();
+        window.initBatchMode();
+    };
+    
+    // Initial call
+    window.initBatchMode();
+</script>
+
+
+    {% if active_tab == 'songs' %}
+    <!-- Song List View -->
+    <div class="song-table-container"
+         data-artist-name="{{ artist.name|escape }}"
+         data-current-sort="{{ current_sort }}"
+         data-next-offset="{{ initial_song_count }}"
+         data-page-size="{{ artist_song_page_size }}"
+         data-has-more="{% if has_more_songs %}true{% else %}false{% endif %}">
+        <div class="batch-mode-toolbar">
+            <div class="batch-toolbar-left">
+                <button class="batch-btn icon-only batch-action" data-action="play" disabled aria-label="Play selected">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="m11.596 8.697-6.363 3.692A.8.8 0 0 1 4 11.692V4.308a.8.8 0 0 1 1.233-.696l6.363 3.692a.8.8 0 0 1 0 1.393z"/>
+                    </svg>
+                </button>
+                <button class="batch-btn batch-action" data-action="playlist" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 12H3"></path><path d="M16 6H3"></path><path d="M16 18H3"></path><path d="M18 9v6"></path><path d="M21 12h-6"></path>
+                    </svg>
+                    Add to Playlist
+                </button>
+                <button class="batch-btn batch-action" data-action="download" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Download
+                </button>
+            </div>
+            <button class="batch-done-btn" onclick="exitBatchMode()">Done</button>
+        </div>
+
+        <div class="batch-select-row">
+            <div style="display: flex; align-items: center; justify-content: center;">
+                <input type="checkbox" class="batch-checkbox" id="batch-select-all" aria-label="Select all songs">
+            </div>
+            <div><span id="batch-select-label">Select all ({{ artist.songs|length }} songs)</span></div>
+            <div>Album</div>
+            <div style="text-align: center;">Like</div>
+        </div>
+
+        <div class="playlist-song-header">
+            <div class="playlist-header-cell" style="display: flex; align-items: center; justify-content: center;">#</div>
+            <a class="playlist-header-cell is-hoverable is-sortable {% if current_sort == 'title_asc' or current_sort == 'title_desc' %}is-sort-active{% endif %}"
+               href="/artist/{{ artist.name|urlencode }}/?tab=songs&sort={% if current_sort == 'title_asc' %}title_desc{% elif current_sort == 'title_desc' %}default{% else %}title_asc{% endif %}"
+               onclick="if(window.navigatePage){ event.preventDefault(); navigatePage(this.getAttribute('href'), false, true, false); }">
+                Title
+                <span class="playlist-header-sort-note">
+                    {% if current_sort == 'title_asc' %}
+                        <span class="playlist-header-sort-icon">&uarr;</span><span>Title A-Z</span>
+                    {% elif current_sort == 'title_desc' %}
+                        <span class="playlist-header-sort-icon">&darr;</span><span>Title Z-A</span>
+                    {% else %}
+                        <span class="playlist-header-sort-icon">&varr;</span><span>Default order</span>
+                    {% endif %}
+                </span>
+            </a>
+            <div class="playlist-header-cell"></div>
+            <a class="playlist-header-cell is-hoverable is-sortable {% if current_sort == 'album_asc' or current_sort == 'album_desc' %}is-sort-active{% endif %}"
+               href="/artist/{{ artist.name|urlencode }}/?tab=songs&sort={% if current_sort == 'album_asc' %}album_desc{% elif current_sort == 'album_desc' %}default{% else %}album_asc{% endif %}"
+               onclick="if(window.navigatePage){ event.preventDefault(); navigatePage(this.getAttribute('href'), false, true, false); }">
+                Album
+                <span class="playlist-header-sort-note">
+                    {% if current_sort == 'album_asc' %}
+                        <span class="playlist-header-sort-icon">&uarr;</span><span>Album A-Z</span>
+                    {% elif current_sort == 'album_desc' %}
+                        <span class="playlist-header-sort-icon">&darr;</span><span>Album Z-A</span>
+                    {% else %}
+                        <span class="playlist-header-sort-icon">&varr;</span><span>Default order</span>
+                    {% endif %}
+                </span>
+            </a>
+            <div class="playlist-header-cell" style="text-align: center;">Likes</div>
+        </div>
+
+        {% for s in artist.songs %}
+        <div class="song-row" data-song-id="{{ s.id }}" data-song-type="{{ s.song_type }}"
+             style="display: grid !important; grid-template-columns: 50px 1.5fr 110px 1fr 70px; column-gap: 20px; align-items: center; padding: 12px 20px; border-radius: 12px; transition: all 0.2s; cursor: default;">
+            <div class="batch-row-check">
+                <input type="checkbox" class="batch-checkbox batch-song-checkbox" value="{{ s.id }}" aria-label="Select {{ s.title }}">
+            </div>
+            <div class="song-index-col" style="color: rgba(255,255,255,0.9); position: relative; width: 50px; height: 35px; display: flex; align-items: center; justify-content: center;">
+                <span class="index-num">{{ forloop.counter|stringformat:"02d" }}</span>
+                <div class="index-play-btn" onclick="loadAndPlay('{{ s.file_url|escapejs }}', '{{ s.title|escapejs }}', '{{ s.artist|escapejs }}', '{{ s.cover|escapejs }}', {{ s.id }})">
+                    <svg class="icon-play" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+                    </svg>
+                    <svg class="icon-pause" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" style="display: none;">
+                        <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="song-cell-title">
+                <div style="position: relative; cursor: pointer; flex-shrink: 0; display: flex; align-items: center;" onclick="loadAndPlay('{{ s.file_url|escapejs }}', '{{ s.title|escapejs }}', '{{ s.artist|escapejs }}', '{{ s.cover|escapejs }}', {{ s.id }})">
+                    <img src="{{ s.cover }}" class="song-cell-img" alt="{{ s.title }}" onerror="this.onerror=null; this.src='/media/covers/default_cover.jpg'">
+                </div>
+                <div class="song-title-wrapper" style="width: 100%; min-width: 0; overflow: hidden;">
+                    <div class="song-title-marquee">
+                        <span class="song-title-text song-title-link">{{ s.title }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="row-action-pill is-3-buttons">
+                <div class="row-action-btn" onclick="event.stopPropagation(); downloadSong('{{ s.file_url|escapejs }}', '{{ s.title|escapejs }}')" title="Download">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </div>
+                <div class="row-action-btn" onclick="event.stopPropagation(); window.triggerAddToPlaylist({{ s.id }})" title="Add to Playlist">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 12H3"></path><path d="M16 6H3"></path><path d="M16 18H3"></path><path d="M18 9v6"></path><path d="M21 12h-6"></path>
+                    </svg>
+                </div>
+                <div class="row-action-btn" onclick="event.stopPropagation(); navigatePage('/comments/{{ s.id }}/')" title="Comment">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="hover-marquee-wrapper {% if not s.album or 'unknown' in s.album|lower %}metadata-unknown{% endif %}">
+                <div class="hover-marquee-content">
+                    {% if not s.album or 'unknown' in s.album|lower %}
+                        <span>{{ s.album|default:"Unknown Album" }}</span>
+                    {% elif not request.user.is_authenticated %}
+                        <span>{{ s.album }}</span>
+                    {% else %}
+                        <a href="{% url 'music:album_detail_frontend' s.album %}">{{ s.album }}</a>
+                    {% endif %}
+                </div>
+            </div>
+            <div style="text-align: center; display: flex; align-items: center; justify-content: center;"
+                 class="song-row-heart {% if s.is_liked %}is-liked{% endif %}" data-song-id="{{ s.id }}"
+                 onclick="event.stopPropagation(); toggleLike({{ s.id }}, this)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#ff4444" viewBox="0 0 16 16" class="heart-filled">
+                    <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/>
+                </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="heart-empty">
+                    <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z"/>
+                </svg>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center" style="padding: 100px 0; color: rgba(255,255,255,0.3);">
+            <h3>No songs found for this artist.</h3>
+        </div>
+        {% endfor %}
+        <div class="artist-load-more {% if not has_more_songs %}is-hidden{% endif %}" id="artist-load-more">
+            <span class="artist-load-spinner"></span>
+            <span>Loading more songs</span>
+        </div>
+    </div>
+
+    {% elif active_tab == 'albums' %}
+    <!-- Album Grid View -->
+    <div class="catalog-grid">
+        {% for album in artist.albums %}
+        {% url 'music:album_detail_frontend' album.name as album_url %}
+        <div class="catalog-card" {% if request.user.is_authenticated %}onclick="const tUrl='{{ album_url|escapejs }}'; if(window.navigatePage) window.navigatePage(tUrl); else window.location.href=tUrl;"{% endif %}>
+            <img src="{{ album.cover }}" onerror="this.src='/media/covers/default_cover.jpg'">
+            <h5>{{ album.name }}</h5>
+            <p>{{ album.song_count }}/{{ album.total_song_count }} {{ album.total_song_count|pluralize:"Song,Songs" }}</p>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center" style="padding: 100px 0; color: rgba(255,255,255,0.3);">
+            <h3>No albums found for this artist.</h3>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+    window.initBatchMode();
+
+    window.initArtistInfiniteSongs = function() {
+        const table = document.querySelector('.song-table-container[data-artist-name]');
+        if (!table || table.dataset.infiniteReady === 'true') return;
+        table.dataset.infiniteReady = 'true';
+
+        const scrollArea = document.querySelector('.main-scrollable-area') || window;
+        const loader = document.getElementById('artist-load-more');
+        let isLoading = false;
+
+        const stillOnThisArtistPage = () => document.body.contains(table);
+        const cleanupScroll = () => {
+            scrollArea.removeEventListener('scroll', onScroll);
+        };
+
+        const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (ch) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[ch]));
+
+        const escapeJsArg = (value) => String(value || '')
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'")
+            .replace(/\r?\n/g, ' ');
+
+        const padIndex = (value) => String(value).padStart(2, '0');
+
+        const bindNewCheckbox = (row) => {
+            const cb = row.querySelector('.batch-song-checkbox');
+            if (cb) cb.addEventListener('click', () => window.updateBatchState && window.updateBatchState());
+        };
+
+        const appendSongRow = (song, index) => {
+            const row = document.createElement('div');
+            row.className = 'song-row';
+            row.dataset.songId = song.id;
+            row.dataset.songType = song.song_type || '';
+            row.style.cssText = 'display: grid !important; grid-template-columns: 50px 1.5fr 110px 1fr 70px; column-gap: 20px; align-items: center; padding: 12px 20px; border-radius: 12px; transition: all 0.2s; cursor: default;';
+
+            const title = escapeHtml(song.title);
+            const artist = escapeHtml(song.artist);
+            const album = escapeHtml(song.album || 'Unknown Album');
+            const cover = escapeHtml(song.cover || '/media/covers/default_cover.jpg');
+            const albumUrl = `/album/${encodeURIComponent(song.album || '')}/`;
+            const canNavigateMetadata = !!(window.AURORA && window.AURORA.isAuthenticated);
+            const playCall = `loadAndPlay('${escapeJsArg(song.file_url)}', '${escapeJsArg(song.title)}', '${escapeJsArg(song.artist)}', '${escapeJsArg(song.cover)}', ${song.id})`;
+            const likedClass = song.is_liked ? ' is-liked' : '';
+
+            row.innerHTML = `
+                <div class="batch-row-check">
+                    <input type="checkbox" class="batch-checkbox batch-song-checkbox" value="${song.id}" aria-label="Select ${title}">
+                </div>
+                <div class="song-index-col" style="color: rgba(255,255,255,0.9); position: relative; width: 50px; height: 35px; display: flex; align-items: center; justify-content: center;">
+                    <span class="index-num">${padIndex(index)}</span>
+                    <div class="index-play-btn" onclick="${escapeHtml(playCall)}">
+                        <svg class="icon-play" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
+                        <svg class="icon-pause" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" style="display: none;"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
+                    </div>
+                </div>
+                <div class="song-cell-title">
+                    <div class="artist-dynamic-play" style="position: relative; cursor: pointer; flex-shrink: 0; display: flex; align-items: center;">
+                        <img src="${cover}" class="song-cell-img" alt="${title}" onerror="this.onerror=null; this.src='/media/covers/default_cover.jpg'">
+                    </div>
+                    <div class="song-title-wrapper" style="width: 100%; min-width: 0; overflow: hidden;">
+                        <div class="song-title-marquee"><span class="song-title-text song-title-link">${title}</span></div>
+                    </div>
+                </div>
+                <div class="row-action-pill is-3-buttons">
+                    <div class="row-action-btn artist-dynamic-download" title="Download">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    </div>
+                    <div class="row-action-btn artist-dynamic-playlist" title="Add to Playlist">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12H3"></path><path d="M16 6H3"></path><path d="M16 18H3"></path><path d="M18 9v6"></path><path d="M21 12h-6"></path></svg>
+                    </div>
+                    <div class="row-action-btn artist-dynamic-comments" title="Comment">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    </div>
+                </div>
+                <div class="hover-marquee-wrapper ${!song.album || String(song.album).toLowerCase().includes('unknown') ? 'metadata-unknown' : ''}">
+                    <div class="hover-marquee-content">${!song.album || String(song.album).toLowerCase().includes('unknown') || !canNavigateMetadata ? `<span>${album}</span>` : `<a href="${escapeHtml(albumUrl)}">${album}</a>`}</div>
+                </div>
+                <div style="text-align: center; display: flex; align-items: center; justify-content: center;" class="song-row-heart${likedClass}" data-song-id="${song.id}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#ff4444" viewBox="0 0 16 16" class="heart-filled"><path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="heart-empty"><path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z"/></svg>
+                </div>
+            `;
+
+            const play = () => loadAndPlay(song.file_url || '', song.title || '', song.artist || '', song.cover || '', song.id);
+            row.querySelector('.artist-dynamic-play').addEventListener('click', play);
+            row.querySelector('.artist-dynamic-download').addEventListener('click', (event) => {
+                event.stopPropagation();
+                downloadSong(song.file_url || '', song.title || '');
+            });
+            row.querySelector('.artist-dynamic-playlist').addEventListener('click', (event) => {
+                event.stopPropagation();
+                window.triggerAddToPlaylist(song.id);
+            });
+            row.querySelector('.artist-dynamic-comments').addEventListener('click', (event) => {
+                event.stopPropagation();
+                navigatePage(`/comments/${song.id}/`);
+            });
+            row.querySelector('.song-row-heart').addEventListener('click', (event) => {
+                event.stopPropagation();
+                toggleLike(song.id, event.currentTarget);
+            });
+            bindNewCheckbox(row);
+
+            table.insertBefore(row, loader);
+        };
+
+        const loadMore = async () => {
+            if (!stillOnThisArtistPage()) {
+                cleanupScroll();
+                return;
+            }
+            if (isLoading || table.dataset.hasMore !== 'true') return;
+            isLoading = true;
+            if (loader) loader.classList.remove('is-hidden');
+            const url = new URL(window.location.href);
+            url.searchParams.set('partial', 'songs');
+            url.searchParams.set('offset', table.dataset.nextOffset || '0');
+            url.searchParams.set('limit', table.dataset.pageSize || '50');
+
+            try {
+                const minimumDelay = new Promise(resolve => setTimeout(resolve, 500));
+                const responsePromise = fetch(url.pathname + url.search, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const [response] = await Promise.all([responsePromise, minimumDelay]);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                const startIndex = Number(table.dataset.nextOffset || '0');
+                data.songs.forEach((song, idx) => appendSongRow(song, startIndex + idx + 1));
+                table.dataset.nextOffset = String(data.next_offset);
+                table.dataset.hasMore = data.has_more ? 'true' : 'false';
+                if (!data.has_more && loader) loader.classList.add('is-hidden');
+                if (window.updateBatchState) window.updateBatchState();
+            } catch (error) {
+                console.error('[ArtistDetail] Failed to load more songs:', error);
+                if (window.showHubToast) showHubToast('Load more failed');
+            } finally {
+                isLoading = false;
+            }
+        };
+
+        const nearBottom = () => {
+            if (scrollArea === window) {
+                return window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 220;
+            }
+            return scrollArea.scrollTop + scrollArea.clientHeight >= scrollArea.scrollHeight - 220;
+        };
+
+        const onScroll = () => {
+            if (!stillOnThisArtistPage()) {
+                cleanupScroll();
+                return;
+            }
+            if (nearBottom()) loadMore();
+        };
+
+        scrollArea.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+    };
+
+    window.initArtistInfiniteSongs();
+</script>
+
+{% endblock %}

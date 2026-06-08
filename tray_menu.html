@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            box-sizing: border-box;
+            background: transparent;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .app-bg {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+            color: #fff;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+            font-family: 'Open Sans', 'Quicksand', sans-serif;
+            background: transparent;
+        }
+
+        .app-bg::before {
+            content: "";
+            position: absolute;
+            top: -20px; left: -20px; right: -20px; bottom: -20px;
+            background: url('music/static/music/images/showcase_main_bg.jpg') center center / cover no-repeat;
+            filter: blur(8px); /* Lowered blur intensity */
+            z-index: -2;
+        }
+
+        .app-bg::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: -1;
+        }
+
+        .menu-list {
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 6px 0; 
+            justify-content: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .menu-item {
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            min-height: 38px;
+            box-sizing: border-box;
+        }
+        .menu-item:hover {
+            background: rgba(0, 199, 138, 0.2);
+            color: #00C78A;
+        }
+        
+        .menu-icon {
+            margin-right: 12px;
+            width: 16px;
+            height: 16px;
+            display: inline-flex;
+        }
+        .menu-icon svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .separator {
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 4px 0;
+            z-index: 10;
+        }
+        
+        .quit-item:hover {
+            background: rgba(255, 77, 77, 0.15) !important;
+            color: #ff4d4d !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-bg">
+        <div class="menu-list">
+            <div class="menu-item" onclick="if(window.electronAPI) window.electronAPI.showMain()">
+                <div class="menu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                </div>
+                Open AURORA
+            </div>
+            <div class="separator"></div>
+            <div class="menu-item quit-item" onclick="if(window.electronAPI) window.electronAPI.quitApp()">
+                <div class="menu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </div>
+                Quit Application
+            </div>
+        </div>
+    </div>
+</body>
+</html>

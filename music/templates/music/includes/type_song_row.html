@@ -1,0 +1,95 @@
+{% load music_tags %}
+<div class="song-row" data-song-id="{{ song.id }}" data-song-type="{{ song.song_type }}"
+    onclick="if(!event.target.closest('a'))loadAndPlay('{{ song.download_link.url }}', '{{ song.name|escapejs }}', '{{ song.arrangement|escapejs }}', '{% if song.cover %}{{ song.cover|bust_url }}{% else %}/media/covers/default_cover.jpg{% endif %}', '{{ song.id }}')">
+
+    <!-- Col 1: 序号 / 播放按钮 -->
+    <div class="song-index-col" style="position:relative;width:35px;height:35px;display:flex;align-items:center;justify-content:center;">
+        <span class="index-num">{% if row_number %}{{ row_number|stringformat:"02d" }}{% else %}{{ forloop.counter|stringformat:"02d" }}{% endif %}</span>
+        <div class="index-play-btn"
+            onclick="event.stopPropagation(); loadAndPlay('{{ song.download_link.url }}', '{{ song.name|escapejs }}', '{{ song.arrangement|escapejs }}', '{% if song.cover %}{{ song.cover|bust_url }}{% else %}/media/covers/default_cover.jpg{% endif %}', '{{ song.id }}')">
+            <svg class="icon-play" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+            </svg>
+            <svg class="icon-pause" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" style="display:none;">
+                <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Col 2: 封面 + 标题 -->
+    <div class="song-cell-title">
+        <div style="flex-shrink:0;display:flex;align-items:center;">
+            <img src="{% if song.cover %}{{ song.cover|bust_url }}{% else %}/media/covers/default_cover.jpg{% endif %}"
+                class="song-cell-img" alt="{{ song.name }}"
+                onerror="this.onerror=null;this.src='/media/covers/default_cover.jpg'">
+        </div>
+        <div class="song-title-wrapper" style="width:100%;min-width:0;overflow:hidden;">
+            <div class="song-title-marquee">
+                <span class="song-title-text song-title-link">{{ song.name }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Col 3: 操作按钮 -->
+    {% if request.user.is_authenticated %}
+    <div class="row-action-pill is-3-buttons">
+        <div class="row-action-btn"
+            onclick="event.stopPropagation(); downloadSong('{{ song.download_link.url }}', '{{ song.name|escapejs }}')"
+            title="Download">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+        </div>
+        <div class="row-action-btn"
+            onclick="event.stopPropagation(); window.triggerAddToPlaylist({{ song.id }})"
+            title="Add to Playlist">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/>
+            </svg>
+        </div>
+        <div class="row-action-btn"
+            onclick="event.stopPropagation(); navigatePage('/comments/{{ song.id }}/')"
+            title="Comment">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- Col 4: 艺术家 -->
+    <div class="hover-marquee-wrapper {% if not song.arrangement or 'unknown' in song.arrangement|lower %}metadata-unknown{% endif %}">
+        <div class="hover-marquee-content">
+            {% if not song.arrangement or 'unknown' in song.arrangement|lower %}
+                <span>{{ song.arrangement|default:"Unknown Artist" }}</span>
+            {% else %}
+                {% for artist_name in song.arrangement|split_artists %}
+                    {% if request.user.is_authenticated %}
+                        <a href="{% url 'music:artist_detail_frontend' artist_name %}" class="artist-link">{{ artist_name }}</a>
+                    {% else %}
+                        <span>{{ artist_name }}</span>
+                    {% endif %}{% if not forloop.last %}<span class="artist-separator">/</span>{% endif %}
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Col 5: 喜欢 -->
+    {% if request.user.is_authenticated %}
+    <div class="song-row-heart {% if is_liked %}is-liked{% endif %}" data-song-id="{{ song.id }}"
+        onclick="event.stopPropagation(); toggleLike({{ song.id }}, this)"
+        style="text-align:center;display:flex;align-items:center;justify-content:center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#ff4444" viewBox="0 0 16 16" class="heart-filled">
+            <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="heart-empty">
+            <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.242 23.333 4.867 8 15z"/>
+        </svg>
+    </div>
+    {% endif %}
+
+</div>
