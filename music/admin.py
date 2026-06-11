@@ -840,10 +840,81 @@ class UserAdmin(ReturnToListAdminMixin, admin.ModelAdmin):
         updated = queryset.update(status='Active')
         self.message_user(request, f'Successfully unbanned {updated} users.')
 
+
+class PlaylistAdmin(ReturnToListAdminMixin, admin.ModelAdmin):
+    list_display = ('name', 'user', 'is_private', 'created_at', 'views')
+    search_fields = ('name', 'user__username', 'introduction')
+    list_filter = ('is_private',)
+    change_list_template = 'admin/music/playlist/change_list.html'
+
+    def changelist_view(self, request, extra_context=None):
+        request.GET = request.GET.copy()
+        q = request.GET.get('q', '').strip()
+        visibility = request.GET.get('visibility', 'all')
+
+        playlists = (
+            Playlist.objects
+            .select_related('user')
+            .annotate(
+                song_count=Count('songs', distinct=True),
+                favorite_count=Count('favorited_by', distinct=True),
+            )
+            .order_by('-created_at', '-id')
+        )
+
+        if q:
+            playlists = playlists.filter(
+                Q(name__icontains=q) |
+                Q(user__username__icontains=q) |
+                Q(introduction__icontains=q)
+            )
+
+        if visibility == 'private':
+            playlists = playlists.filter(is_private=True)
+        elif visibility == 'public':
+            playlists = playlists.filter(is_private=False)
+        else:
+            visibility = 'all'
+
+        paginator = Paginator(playlists, 20)
+        page_num = request.GET.get('p', 0)
+        try:
+            page_num = int(page_num) + 1
+        except (TypeError, ValueError):
+            page_num = 1
+
+        page_obj = paginator.get_page(page_num)
+        extra_context = extra_context or {}
+        extra_context.update({
+            'page_obj': page_obj,
+            'playlists': page_obj,
+            'q': q,
+            'visibility': visibility,
+            'total_playlists': Playlist.objects.count(),
+            'public_count': Playlist.objects.filter(is_private=False).count(),
+            'private_count': Playlist.objects.filter(is_private=True).count(),
+        })
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Playlist Management',
+            'opts': self.model._meta,
+            'app_label': self.model._meta.app_label,
+            'module_name': str(self.model._meta.verbose_name_plural),
+            'has_view_permission': self.has_view_permission(request),
+            'has_add_permission': self.has_add_permission(request),
+            'has_change_permission': self.has_change_permission(request),
+            'has_delete_permission': self.has_delete_permission(request),
+            **extra_context,
+        }
+        request.current_app = self.admin_site.name
+        return TemplateResponse(request, self.change_list_template, context)
+
+
 # Register models to custom admin site
 admin_site.register(User, UserAdmin)
 admin_site.register(Song, SongAdmin)
-admin_site.register(Playlist)
+admin_site.register(Playlist, PlaylistAdmin)
 admin_site.register(PlaylistSong)
 admin_site.register(FavoriteSongPosition)
 admin_site.register(Comment)

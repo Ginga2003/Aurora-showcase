@@ -582,6 +582,69 @@ class AdminDashboardViewTest(TestCase):
         self.assertTrue(response.context['type_breakdown'])
 
 
+class PlaylistAdminViewTest(TestCase):
+
+    def setUp(self):
+        self.client = Client()
+        self.admin_user = AuthUser.objects.create_superuser(
+            username='playlist_admin',
+            email='playlist-admin@example.com',
+            password='password123',
+        )
+        self.custom_user = User.objects.create(
+            username='playlist_owner',
+            password='password123',
+            status='Active',
+            email='owner@example.com',
+        )
+        self.song = Song.objects.create(
+            name='Playlist Admin Song',
+            song_type='Game',
+            release_date=datetime.date(2024, 1, 1),
+        )
+        self.public_playlist = Playlist.objects.create(
+            user=self.custom_user,
+            name='Morning Set',
+            introduction='Public listening queue',
+            is_private=False,
+        )
+        self.private_playlist = Playlist.objects.create(
+            user=self.custom_user,
+            name='Road Notes',
+            introduction='Private travel queue',
+            is_private=True,
+        )
+        self.public_playlist.songs.add(self.song)
+        self.client.force_login(self.admin_user)
+
+    def test_playlist_admin_uses_custom_styled_list(self):
+        response = self.client.get(reverse('admin:music_playlist_changelist'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'admin/music/playlist/change_list.html')
+        self.assertContains(response, 'Playlist Management')
+        self.assertContains(response, 'playlist-row')
+        self.assertContains(response, 'Morning Set')
+        self.assertContains(response, 'Road Notes')
+        self.assertContains(response, 'Public')
+        self.assertContains(response, 'Private')
+        self.assertEqual(response.context['page_obj'].paginator.count, 2)
+        self.assertEqual(response.context['public_count'], 1)
+        self.assertEqual(response.context['private_count'], 1)
+
+    def test_playlist_admin_filters_by_search_and_visibility(self):
+        response = self.client.get(reverse('admin:music_playlist_changelist'), {
+            'q': 'Road',
+            'visibility': 'private',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Road Notes')
+        self.assertNotContains(response, 'Morning Set')
+        self.assertEqual(response.context['visibility'], 'private')
+        self.assertEqual(response.context['page_obj'].paginator.count, 1)
+
+
 class AdminLibrarySearchViewTest(TestCase):
 
     def setUp(self):

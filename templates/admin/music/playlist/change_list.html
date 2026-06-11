@@ -1,0 +1,552 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block title %}Playlist Management{% endblock %}
+
+{% block extra_head %}
+<style>
+    .playlist-admin {
+        color: #fff;
+    }
+
+    .playlist-header {
+        margin-bottom: 26px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .playlist-title-row,
+    .playlist-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        flex-wrap: wrap;
+    }
+
+    .playlist-title {
+        color: #fff;
+        font-size: 1.1rem;
+        font-weight: 700;
+        position: relative;
+        padding-bottom: 8px;
+        margin: 0;
+    }
+
+    .playlist-title::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: 3px;
+        border-radius: 2px;
+        background: var(--jewel-red);
+        box-shadow: 0 0 10px var(--aurora-shadow);
+    }
+
+    .playlist-counts {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: rgba(255, 255, 255, 0.62);
+        font-size: 0.9rem;
+    }
+
+    .playlist-add {
+        color: var(--jewel-red);
+        font-size: 18px;
+        font-weight: 800;
+        text-decoration: none;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 1px solid var(--aurora-border-alpha);
+        background: var(--aurora-bg-alpha);
+        transition: all 0.25s ease;
+    }
+
+    .playlist-add:hover {
+        color: var(--jewel-red-hover);
+        border-color: var(--jewel-red);
+        background: var(--aurora-bg-alpha-hover);
+        box-shadow: 0 5px 15px var(--aurora-shadow);
+        text-decoration: none;
+    }
+
+    .playlist-toolbar {
+        margin-top: 18px;
+    }
+
+    .playlist-filters {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .playlist-filter {
+        min-height: 34px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.055);
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .playlist-filter:hover,
+    .playlist-filter.active {
+        color: #fff;
+        border-color: rgba(255, 45, 75, 0.55);
+        background: rgba(255, 45, 75, 0.18);
+        text-decoration: none;
+    }
+
+    .playlist-search {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: min(460px, 100%);
+    }
+
+    .playlist-search input[type="search"] {
+        width: 100%;
+        min-height: 38px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.065);
+        color: #fff;
+        outline: none;
+        padding: 8px 15px;
+        font-size: 13px;
+    }
+
+    .playlist-search input[type="search"]:focus {
+        border-color: rgba(255, 45, 75, 0.55);
+        box-shadow: 0 0 0 3px rgba(255, 45, 75, 0.12);
+    }
+
+    .playlist-search input[type="search"]::placeholder {
+        color: rgba(255, 255, 255, 0.42);
+    }
+
+    .playlist-search button,
+    .playlist-clear {
+        min-height: 38px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 45, 75, 0.42);
+        background: rgba(255, 45, 75, 0.15);
+        color: #fff;
+        padding: 8px 15px;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .playlist-search button:hover,
+    .playlist-clear:hover {
+        border-color: var(--jewel-red);
+        background: rgba(255, 45, 75, 0.24);
+        color: #fff;
+        text-decoration: none;
+    }
+
+    .playlist-table {
+        width: 100%;
+    }
+
+    .playlist-row {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1.6fr) minmax(140px, 0.8fr) 92px 92px 116px 118px 56px;
+        column-gap: 18px;
+        align-items: center;
+        min-height: 76px;
+        padding: 12px 18px;
+        border-radius: 12px;
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 14px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .playlist-row:not(.playlist-header-row):hover {
+        background: rgba(160, 20, 35, 0.2);
+    }
+
+    .playlist-row:not(.playlist-header-row):hover::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 12px;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        z-index: 0;
+        pointer-events: none;
+    }
+
+    .playlist-row:not(.playlist-header-row):hover > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .playlist-header-row {
+        min-height: 44px;
+        padding: 10px 18px;
+        margin-bottom: 6px;
+        border-radius: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1.3px;
+    }
+
+    .playlist-cover {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        object-fit: cover;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .playlist-main {
+        min-width: 0;
+    }
+
+    .playlist-name {
+        color: #fff;
+        font-weight: 800;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .playlist-intro,
+    .playlist-muted {
+        color: rgba(255, 255, 255, 0.58);
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-top: 4px;
+    }
+
+    .playlist-owner,
+    .playlist-number,
+    .playlist-date {
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 13px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .visibility-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 72px;
+        min-height: 28px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .visibility-public {
+        color: #00C78A;
+        border: 1px solid rgba(0, 199, 138, 0.3);
+        background: rgba(0, 199, 138, 0.1);
+    }
+
+    .visibility-private {
+        color: #ffcf6e;
+        border: 1px solid rgba(255, 207, 110, 0.3);
+        background: rgba(255, 207, 110, 0.1);
+    }
+
+    .playlist-edit {
+        cursor: pointer;
+        opacity: 0.55;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        margin: 0 auto;
+        text-decoration: none;
+        transition: all 0.25s ease;
+    }
+
+    .playlist-edit:hover {
+        opacity: 1;
+        color: var(--aurora-purple);
+        transform: scale(1.12);
+        filter: drop-shadow(0 0 8px var(--aurora-purple-glow));
+    }
+
+    .pagination-bar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        padding: 30px 0 10px 0;
+    }
+
+    .page-link-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        transition: all 0.25s ease;
+    }
+
+    .page-link-btn:hover {
+        background: var(--aurora-bg-alpha);
+        border-color: var(--jewel-red);
+        color: #fff;
+        text-decoration: none;
+    }
+
+    .page-link-btn.disabled {
+        opacity: 0.2;
+        pointer-events: none;
+    }
+
+    .page-info-box {
+        color: rgba(255, 255, 255, 0.62);
+        font-size: 14px;
+    }
+
+    .page-info-current {
+        color: #fff;
+        font-weight: 800;
+    }
+
+    .empty-message {
+        text-align: center;
+        padding: 90px 20px;
+        color: rgba(255, 255, 255, 0.45);
+    }
+
+    @media (max-width: 1180px) {
+        .playlist-row {
+            grid-template-columns: 60px minmax(0, 1.4fr) minmax(120px, 0.8fr) 86px 86px 104px 48px;
+        }
+
+        .playlist-row > .playlist-date,
+        .playlist-header-row > .playlist-date-head {
+            display: none;
+        }
+    }
+
+    @media (max-width: 860px) {
+        .playlist-row,
+        .playlist-header-row {
+            grid-template-columns: 56px minmax(0, 1fr) 76px 44px;
+        }
+
+        .playlist-row > .playlist-owner,
+        .playlist-row > .playlist-number,
+        .playlist-row > .playlist-favorites,
+        .playlist-header-row > .playlist-owner-head,
+        .playlist-header-row > .playlist-number-head,
+        .playlist-header-row > .playlist-favorites-head {
+            display: none;
+        }
+
+        .playlist-toolbar,
+        .playlist-search {
+            align-items: stretch;
+            width: 100%;
+        }
+
+        .playlist-search {
+            flex-wrap: wrap;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="playlist-admin page-entrance">
+    <div class="playlist-header">
+        <div class="playlist-title-row">
+            <h2 class="playlist-title">Playlist Management</h2>
+            <div class="playlist-counts">
+                <span>{{ page_obj.paginator.count }} {{ page_obj.paginator.count|pluralize:"Playlist,Playlists" }}</span>
+                {% if has_add_permission %}
+                <a class="playlist-add"
+                   href="{% url 'admin:music_playlist_add' %}?next={{ request.get_full_path|urlencode }}"
+                   onclick="window.location.replace(this.href); return false;"
+                   title="Add Playlist">+</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="playlist-toolbar">
+            <div class="playlist-filters">
+                <a class="playlist-filter {% if visibility == 'all' %}active{% endif %}" href="?visibility=all{% if q %}&q={{ q|urlencode }}{% endif %}">
+                    All {{ total_playlists }}
+                </a>
+                <a class="playlist-filter {% if visibility == 'public' %}active{% endif %}" href="?visibility=public{% if q %}&q={{ q|urlencode }}{% endif %}">
+                    Public {{ public_count }}
+                </a>
+                <a class="playlist-filter {% if visibility == 'private' %}active{% endif %}" href="?visibility=private{% if q %}&q={{ q|urlencode }}{% endif %}">
+                    Private {{ private_count }}
+                </a>
+            </div>
+
+            <form class="playlist-search" method="get">
+                <input type="hidden" name="visibility" value="{{ visibility }}">
+                <input type="search" name="q" value="{{ q }}" placeholder="Search by playlist, owner, or description">
+                <button type="submit">Search</button>
+                {% if q %}
+                <a class="playlist-clear" href="?visibility={{ visibility }}">Clear</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <div class="playlist-table">
+        <div class="playlist-row playlist-header-row">
+            <div>Cover</div>
+            <div>Playlist</div>
+            <div class="playlist-owner-head">Owner</div>
+            <div class="playlist-number-head">Songs</div>
+            <div class="playlist-favorites-head">Saved</div>
+            <div>Visibility</div>
+            <div class="playlist-date-head">Created</div>
+            <div style="text-align: center;">Edit</div>
+        </div>
+
+        {% for playlist in playlists %}
+        <div class="playlist-row">
+            <div>
+                <img class="playlist-cover"
+                     src="{% if playlist.cover %}{{ playlist.cover.url }}{% else %}/media/playlists/default_playlist.png{% endif %}"
+                     onerror="this.src='/media/playlists/default_playlist.png'"
+                     alt="{{ playlist.name }}">
+            </div>
+
+            <div class="playlist-main">
+                <div class="playlist-name">{{ playlist.name }}</div>
+                <div class="playlist-intro">{{ playlist.introduction|default:"No Description" }}</div>
+            </div>
+
+            <div class="playlist-owner">
+                {{ playlist.user.username }}
+                <div class="playlist-muted">{{ playlist.user.email|default:"No email" }}</div>
+            </div>
+
+            <div class="playlist-number">{{ playlist.song_count }}</div>
+            <div class="playlist-number playlist-favorites">{{ playlist.favorite_count }}</div>
+
+            <div>
+                {% if playlist.is_private %}
+                <span class="visibility-badge visibility-private">Private</span>
+                {% else %}
+                <span class="visibility-badge visibility-public">Public</span>
+                {% endif %}
+            </div>
+
+            <div class="playlist-date">
+                {% if playlist.created_at %}{{ playlist.created_at|date:"Y-m-d" }}{% else %}Unknown{% endif %}
+            </div>
+
+            <div style="text-align: center;">
+                <a href="{% url 'admin:music_playlist_change' playlist.pk %}?next={{ request.get_full_path|urlencode }}"
+                   class="playlist-edit"
+                   title="Edit Playlist"
+                   onclick="window.location.replace(this.href); return false;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-message">
+            <h3>No playlists found.</h3>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="pagination-bar">
+        {% if page_obj.has_previous %}
+        <a href="?p=0&visibility={{ visibility }}{% if q %}&q={{ q|urlencode }}{% endif %}" class="page-link-btn" title="First">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline>
+            </svg>
+        </a>
+        <a href="?p={{ page_obj.previous_page_number|add:-1 }}&visibility={{ visibility }}{% if q %}&q={{ q|urlencode }}{% endif %}" class="page-link-btn" title="Previous">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </a>
+        {% else %}
+        <div class="page-link-btn disabled">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline>
+            </svg>
+        </div>
+        <div class="page-link-btn disabled">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </div>
+        {% endif %}
+
+        <div class="page-info-box">
+            Page <span class="page-info-current">{{ page_obj.number }}</span> / {{ page_obj.paginator.num_pages }}
+        </div>
+
+        {% if page_obj.has_next %}
+        <a href="?p={{ page_obj.next_page_number|add:-1 }}&visibility={{ visibility }}{% if q %}&q={{ q|urlencode }}{% endif %}" class="page-link-btn" title="Next">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </a>
+        <a href="?p={{ page_obj.paginator.num_pages|add:-1 }}&visibility={{ visibility }}{% if q %}&q={{ q|urlencode }}{% endif %}" class="page-link-btn" title="Last">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <polyline points="6 17 11 12 6 7"></polyline><polyline points="13 17 18 12 13 7"></polyline>
+            </svg>
+        </a>
+        {% else %}
+        <div class="page-link-btn disabled">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </div>
+        <div class="page-link-btn disabled">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <polyline points="6 17 11 12 6 7"></polyline><polyline points="13 17 18 12 13 7"></polyline>
+            </svg>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
