@@ -5,6 +5,7 @@ import base64
 import mimetypes
 import zipfile
 import json
+from datetime import timedelta
 from io import BytesIO
 from django.http import FileResponse
 from django.conf import settings
@@ -24,7 +25,11 @@ from django.utils import timezone
 from django.db import models, transaction
 from django.db.models import Q
 from .models import Song, User as CustomUser, Playlist, PlaylistSong, FavoriteSongPosition, FavoritePlaylistPosition, PlayHistory, get_audio_duration, Comment
-from .type_rules import TYPE_SEPARATOR
+from .type_rules import TYPE_SEPARATOR, SECONDARY_TYPE_SET, split_song_types
+
+
+RECOMMENDATION_LIMIT = 10
+RECOMMENDATION_SESSION_VERSION = 'type-secondary-v1'
 
 
 def _type_filter(type_name):
@@ -36,6 +41,198 @@ def _type_filter(type_name):
         Q(song_type__icontains=f'{TYPE_SEPARATOR}{type_name}{TYPE_SEPARATOR}')
     )
 from .forms import UserRegistrationForm, UserProfileUpdateForm
+
+
+def _non_r18_song_queryset():
+    return Song.objects.exclude(_type_filter('R18'))
+
+
+def _type_member_weight(type_name, index):
+    if type_name in SECONDARY_TYPE_SET:
+        return 2.1
+    if index == 1:
+        return 1.8
+    if index == 0:
+        return 1.0
+    return 1.2
+
+
+def _strong_type_key(song):
+    types = split_song_types(song.song_type)
+    for type_name in types:
+        if type_name in SECONDARY_TYPE_SET:
+            return type_name
+    if len(types) > 1:
+        return types[1]
+    return types[0] if types else '__none__'
+
+
+def _history_recency_factor(played_at, now):
+    if not played_at:
+        return 0.4
+    age_days = max((now - played_at).total_seconds() / 86400, 0)
+    if age_days <= 3:
+        return 2.4
+    if age_days <= 14:
+        return 1.8
+    if age_days <= 45:
+        return 1.2
+    if age_days <= 120:
+        return 0.7
+    return 0.35
+
+
+def _recent_play_penalty(played_at, now):
+    if not played_at:
+        return 0
+    age_days = max((now - played_at).total_seconds() / 86400, 0)
+    if age_days <= 1:
+        return 2.0
+    if age_days <= 7:
+        return 0.8
+    if age_days <= 30:
+        return 0.2
+    return 0
+
+
+def _freshness_score(song, now):
+    if not getattr(song, 'created_at', None):
+        return 0
+    age_days = max((now - song.created_at).total_seconds() / 86400, 0)
+    if age_days <= 14:
+        return 1.2
+    if age_days <= 60:
+        return 0.7
+    if age_days <= 180:
+        return 0.3
+    return 0
+
+
+def _build_type_profile(custom_user, history_limit=200):
+    profile = {}
+    last_played_by_song = {}
+    direct_history_scores = {}
+    if not custom_user:
+        return profile, last_played_by_song, direct_history_scores
+
+    now = timezone.now()
+    history_rows = (
+        PlayHistory.objects
+        .filter(user=custom_user)
+        .select_related('song')
+        .order_by('-played_at')[:history_limit]
+    )
+    song_signals = {}
+    for history in history_rows:
+        row = song_signals.setdefault(history.song_id, {
+            'song': history.song,
+            'count': 0,
+            'last_played': history.played_at,
+        })
+        row['count'] += 1
+        if history.played_at and history.played_at > row['last_played']:
+            row['last_played'] = history.played_at
+
+    for song_id, row in song_signals.items():
+        count_factor = min(5.0, 1.0 + (row['count'] - 1) * 0.65)
+        signal = count_factor * _history_recency_factor(row['last_played'], now)
+        last_played_by_song[song_id] = row['last_played']
+        direct_history_scores[song_id] = min(6.0, signal * 1.1)
+        for index, type_name in enumerate(split_song_types(row['song'].song_type)):
+            profile[type_name] = profile.get(type_name, 0) + signal * _type_member_weight(type_name, index)
+
+    return profile, last_played_by_song, direct_history_scores
+
+
+def _candidate_type_score(song, type_profile):
+    score = 0
+    for index, type_name in enumerate(split_song_types(song.song_type)):
+        score += type_profile.get(type_name, 0) * _type_member_weight(type_name, index)
+    return score
+
+
+def _select_diverse_songs(scored_songs, limit):
+    selected = []
+    selected_ids = set()
+    album_counts = {}
+    type_counts = {}
+
+    for song, _score in scored_songs:
+        album_key = song.album or '__none__'
+        type_key = _strong_type_key(song)
+        if album_counts.get(album_key, 0) >= 2:
+            continue
+        if type_counts.get(type_key, 0) >= 4:
+            continue
+        selected.append(song)
+        selected_ids.add(song.id)
+        album_counts[album_key] = album_counts.get(album_key, 0) + 1
+        type_counts[type_key] = type_counts.get(type_key, 0) + 1
+        if len(selected) >= limit:
+            return selected
+
+    for song, _score in scored_songs:
+        if song.id in selected_ids:
+            continue
+        selected.append(song)
+        selected_ids.add(song.id)
+        if len(selected) >= limit:
+            break
+
+    return selected
+
+
+def _build_recommendation_ids(custom_user=None, limit=RECOMMENDATION_LIMIT, refresh=False, exclude_ids=None):
+    clean_exclude_ids = set()
+    for song_id in exclude_ids or []:
+        try:
+            clean_exclude_ids.add(int(song_id))
+        except (TypeError, ValueError):
+            continue
+
+    candidate_qs = _non_r18_song_queryset().annotate(comment_count=models.Count('comments'))
+    if clean_exclude_ids:
+        candidate_qs = candidate_qs.exclude(id__in=clean_exclude_ids)
+    candidates = list(candidate_qs)
+    if not candidates:
+        return []
+
+    now = timezone.now()
+    type_profile, last_played_by_song, direct_history_scores = _build_type_profile(custom_user)
+    max_views = max([song.views or 0 for song in candidates] or [1]) or 1
+    max_comments = max([getattr(song, 'comment_count', 0) or 0 for song in candidates] or [1]) or 1
+    jitter = 1.8 if refresh else 0.45
+    scored_songs = []
+
+    for song in candidates:
+        score = _candidate_type_score(song, type_profile) * 0.55
+        score += direct_history_scores.get(song.id, 0) * 1.2
+        score += ((song.views or 0) / max_views) * 2.0
+        score += ((getattr(song, 'comment_count', 0) or 0) / max_comments) * 0.7
+        score += _freshness_score(song, now)
+        score -= _recent_play_penalty(last_played_by_song.get(song.id), now)
+        score += random.random() * jitter
+        scored_songs.append((song, score))
+
+    scored_songs.sort(key=lambda item: (-item[1], item[0].name.casefold(), item[0].id))
+    return [song.id for song in _select_diverse_songs(scored_songs, limit)]
+
+
+def _sanitize_recommendation_ids(song_ids):
+    clean_ids = []
+    seen = set()
+    for song_id in song_ids or []:
+        try:
+            clean_id = int(song_id)
+        except (TypeError, ValueError):
+            continue
+        if clean_id in seen:
+            continue
+        clean_ids.append(clean_id)
+        seen.add(clean_id)
+
+    valid_ids = set(_non_r18_song_queryset().filter(id__in=clean_ids).values_list('id', flat=True))
+    return [song_id for song_id in clean_ids if song_id in valid_ids]
 
 def _busted_url(cover_field, default, default_marker):
     if not cover_field:
@@ -149,8 +346,6 @@ def ensure_favorite_playlist_positions(user):
     ], ignore_conflicts=True)
 
 def index(request, playlist_id=None):
-    from datetime import timedelta
-
     user_favorites = set()
     custom_user = None
     if request.user.is_authenticated:
@@ -170,28 +365,26 @@ def index(request, playlist_id=None):
             })
         return results
 
-    # 1. Recommend for You — cached in session, only re-randomize on ?refresh_recommend=1
+    # 1. Recommend for You - type-profile based and cached until explicit refresh.
     refresh = request.GET.get('refresh_recommend') == '1'
     cached_ids = request.session.get('recommend_ids')
-    if refresh or not cached_ids:
-        all_meta = list(Song.objects.values_list('id', 'album'))
-        random.shuffle(all_meta)
-        album_count = {}
-        selected_ids = []
-        for song_id, album in all_meta:
-            key = album or '__none__'
-            if album_count.get(key, 0) < 2:
-                selected_ids.append(song_id)
-                album_count[key] = album_count.get(key, 0) + 1
-            if len(selected_ids) >= 10:
-                break
+    cached_version = request.session.get('recommend_version')
+    if refresh or not cached_ids or cached_version != RECOMMENDATION_SESSION_VERSION:
+        previous_ids = _sanitize_recommendation_ids(cached_ids) if refresh else []
+        selected_ids = _build_recommendation_ids(custom_user, refresh=refresh, exclude_ids=previous_ids)
         request.session['recommend_ids'] = selected_ids
+        request.session['recommend_version'] = RECOMMENDATION_SESSION_VERSION
         # PRG: redirect to clean URL so F5 doesn't re-randomize
         if refresh:
             return redirect('music:index')
     else:
-        selected_ids = cached_ids
-    recommend_qs = Song.objects.filter(id__in=selected_ids).annotate(comment_count=models.Count('comments'))
+        selected_ids = _sanitize_recommendation_ids(cached_ids)
+        available_count = _non_r18_song_queryset().count()
+        if len(selected_ids) < min(RECOMMENDATION_LIMIT, available_count):
+            selected_ids = _build_recommendation_ids(custom_user)
+        request.session['recommend_ids'] = selected_ids
+        request.session['recommend_version'] = RECOMMENDATION_SESSION_VERSION
+    recommend_qs = _non_r18_song_queryset().filter(id__in=selected_ids).annotate(comment_count=models.Count('comments'))
 
     # 2. Top Views — 9 songs for 3×3 ranked grid
     top_views_qs = Song.objects.annotate(comment_count=models.Count('comments')).order_by('-views')[:9]
@@ -305,29 +498,23 @@ def type_songs_api(request):
 
 
 def recommend_fragment_api(request):
-    """AJAX: re-randomize session and return HTML fragment for the recommend shelf row."""
+    """AJAX: rebuild recommendations and return HTML fragment for the recommend shelf row."""
     user_favorites = set()
+    custom_user = None
     if request.user.is_authenticated:
         try:
             cu = CustomUser.objects.get(username=request.user.username)
+            custom_user = cu
             user_favorites = set(cu.favorite_songs.values_list('id', flat=True))
         except CustomUser.DoesNotExist:
             pass
 
-    all_meta = list(Song.objects.values_list('id', 'album'))
-    random.shuffle(all_meta)
-    album_count = {}
-    selected_ids = []
-    for song_id, album in all_meta:
-        key = album or '__none__'
-        if album_count.get(key, 0) < 2:
-            selected_ids.append(song_id)
-            album_count[key] = album_count.get(key, 0) + 1
-        if len(selected_ids) >= 10:
-            break
+    previous_ids = _sanitize_recommendation_ids(request.session.get('recommend_ids'))
+    selected_ids = _build_recommendation_ids(custom_user, refresh=True, exclude_ids=previous_ids)
     request.session['recommend_ids'] = selected_ids
+    request.session['recommend_version'] = RECOMMENDATION_SESSION_VERSION
 
-    recommend_qs = Song.objects.filter(id__in=selected_ids).annotate(comment_count=models.Count('comments'))
+    recommend_qs = _non_r18_song_queryset().filter(id__in=selected_ids).annotate(comment_count=models.Count('comments'))
     id_order = {id_: i for i, id_ in enumerate(selected_ids)}
     recommend_sorted = sorted(recommend_qs, key=lambda s: id_order.get(s.id, 999))
     recommend_list = [{'obj': s, 'is_liked': s.id in user_favorites,

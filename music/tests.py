@@ -2,6 +2,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User as AuthUser
 from django.utils import timezone
+from unittest import mock
 import datetime
 
 from .models import User, Song, Playlist, Comment, PlayHistory, get_audio_duration
@@ -196,6 +197,118 @@ class IndexViewTest(TestCase):
         """Home page should return HTTP 200."""
         response = self.client.get(reverse('music:index'))
         self.assertEqual(response.status_code, 200)
+
+    def test_recommendations_exclude_r18_from_index_and_refresh(self):
+        Song.objects.create(
+            name='Hidden R18 Song',
+            song_type='R18',
+            release_date=datetime.date(2024, 1, 1),
+            download_link='songs/hidden-r18.mp3',
+            views=999,
+        )
+        Song.objects.create(
+            name='Visible Recommendation Song',
+            song_type='Touhou | Work',
+            release_date=datetime.date(2024, 1, 1),
+            download_link='songs/visible-recommendation.mp3',
+            views=1,
+        )
+
+        with mock.patch('music.views.random.random', return_value=0):
+            response = self.client.get(reverse('music:index'))
+
+        recommended_names = [item['obj'].name for item in response.context['recommend_songs']]
+        self.assertIn('Visible Recommendation Song', recommended_names)
+        self.assertNotIn('Hidden R18 Song', recommended_names)
+
+        self.client = Client()
+        with mock.patch('music.views.random.random', return_value=0):
+            response = self.client.get(reverse('music:recommend_fragment_api'))
+
+        self.assertContains(response, 'Visible Recommendation Song')
+        self.assertNotContains(response, 'Hidden R18 Song')
+
+    def test_refresh_recommendations_do_not_overlap_previous_batch(self):
+        for index in range(24):
+            Song.objects.create(
+                name=f'Refresh Candidate {index:02d}',
+                album=f'Refresh Album {index:02d}',
+                song_type='Game',
+                release_date=datetime.date(2024, 1, 1),
+                download_link=f'songs/refresh-candidate-{index:02d}.mp3',
+                views=1,
+            )
+
+        with mock.patch('music.views.random.random', return_value=0):
+            response = self.client.get(reverse('music:index'))
+        first_ids = {item['obj'].id for item in response.context['recommend_songs']}
+        self.assertEqual(len(first_ids), 10)
+
+        with mock.patch('music.views.random.random', return_value=0):
+            response = self.client.get(reverse('music:recommend_fragment_api'))
+        second_ids = {item['obj'].id for item in response.context['recommend_songs']}
+
+        self.assertEqual(len(second_ids), 10)
+        self.assertTrue(first_ids.isdisjoint(second_ids))
+
+    def test_recommendations_prioritize_second_type_from_play_history(self):
+        auth_user = AuthUser.objects.create_user(
+            username='type_listener',
+            email='type-listener@example.com',
+            password='password123',
+        )
+        custom_user = User.objects.create(
+            username='type_listener',
+            password='password123',
+            status='Active',
+            email='type-listener@example.com',
+        )
+        seed_song = Song.objects.create(
+            name='History Seed',
+            song_type='Touhou | Work',
+            release_date=datetime.date(2024, 1, 1),
+            download_link='songs/history-seed.mp3',
+            views=0,
+        )
+        work_candidate = Song.objects.create(
+            name='Work Match Candidate',
+            song_type='Original | Work',
+            release_date=datetime.date(2024, 1, 2),
+            download_link='songs/work-match-candidate.mp3',
+            views=0,
+        )
+        other_candidate = Song.objects.create(
+            name='Other Type Candidate',
+            song_type='Original | Jazz',
+            release_date=datetime.date(2024, 1, 3),
+            download_link='songs/other-type-candidate.mp3',
+            views=200,
+        )
+        Song.objects.create(
+            name='R18 Work Candidate',
+            song_type='R18 | Work',
+            release_date=datetime.date(2024, 1, 4),
+            download_link='songs/r18-work-candidate.mp3',
+            views=500,
+        )
+        for days_ago in (3, 10, 20):
+            history = PlayHistory.objects.create(user=custom_user, song=seed_song)
+            PlayHistory.objects.filter(pk=history.pk).update(
+                played_at=timezone.now() - datetime.timedelta(days=days_ago)
+            )
+
+        self.client.force_login(auth_user)
+        with mock.patch('music.views.random.random', return_value=0):
+            response = self.client.get(reverse('music:index'))
+
+        recommended_names = [item['obj'].name for item in response.context['recommend_songs']]
+        self.assertIn(work_candidate.name, recommended_names)
+        self.assertIn(other_candidate.name, recommended_names)
+        self.assertLess(
+            recommended_names.index(work_candidate.name),
+            recommended_names.index(other_candidate.name),
+        )
+        self.assertNotIn('R18 Work Candidate', recommended_names)
 
     def test_guest_index_hides_playlist_square(self):
         response = self.client.get(reverse('music:index'))
