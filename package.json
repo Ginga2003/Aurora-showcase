@@ -1,19 +1,75 @@
 {
-  "name": "aurora",
+  "name": "aurora-showcase",
   "version": "1.0.0",
   "description": "Aurora is a Django-based music library and playback web application, with an optional Electron desktop wrapper.",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "prepare:runtime": "python scripts/prepare_python_runtime.py",
+    "dist": "npm run prepare:runtime && electron-builder --win --x64"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^41.0.3"
+    "electron": "^41.8.0",
+    "electron-builder": "^26.15.3"
   },
-  "directories": {
-    "doc": "docs"
+  "build": {
+    "appId": "com.ginga.aurora.showcase",
+    "productName": "Aurora Showcase",
+    "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "Aurora/**/*",
+      "assets/**/*",
+      "media/avatars/default.jpeg",
+      "media/covers/default_cover.jpg",
+      "media/playlists/default_playlist.png",
+      "media/playlists/Favourite.png",
+      "music/**/*",
+      "templates/**/*",
+      "main.js",
+      "manage.py",
+      "package.json",
+      "preload.js",
+      "README.md",
+      "requirements.txt",
+      "tray_menu.html",
+      "!**/__pycache__/**",
+      "!**/*.pyc",
+      "!**/*.pyo",
+      "!**/*.sqlite3",
+      "!**/*.log",
+      "!**/*.bak*"
+    ],
+    "extraResources": [
+      {
+        "from": ".release/python",
+        "to": "python",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "music/static/music/images/favicon.png"
+    },
+    "portable": {
+      "artifactName": "Aurora-Showcase-${version}-Windows-Portable.exe"
+    },
+    "nsis": {
+      "artifactName": "Aurora-Showcase-${version}-Windows-Setup.exe",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    }
   }
 }

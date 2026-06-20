@@ -30,6 +30,9 @@ def load_local_env(env_path):
 
 load_local_env(BASE_DIR / ".env")
 
+APP_DATA_DIR = os.environ.get("AURORA_APP_DATA_DIR")
+RUNTIME_DIR = Path(APP_DATA_DIR).resolve() if APP_DATA_DIR else BASE_DIR
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -103,7 +106,7 @@ WSGI_APPLICATION = "Aurora.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": RUNTIME_DIR / "db.sqlite3",
     }
 }
 
@@ -150,5 +153,4 @@ STATICFILES_DIRS = [
 
 # Media files (Uploaded by users)
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
+MEDIA_ROOT = RUNTIME_DIR / "media"
