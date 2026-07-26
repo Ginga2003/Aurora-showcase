@@ -5,6 +5,8 @@
 
         const isAuthenticated = window.AURORA.isAuthenticated;
         const currentUsername = window.AURORA.username;
+        let pdvSimilarRequestId = 0;
+        let pdvSimilarCache = { songId: null, data: null };
 
         // Global Helper: Get Cookie Value
         function getCookie(name) {
@@ -27,6 +29,224 @@
             if (!currentUsername) return null;
             return `mh_${currentUsername}_${base}`;
         }
+
+        function escapePDVHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;',
+            }[ch]));
+        }
+
+        function getPDVSimilarContainer() {
+            return document.getElementById('pdv-similar-content');
+        }
+
+        function renderPDVArtistLinks(artistValue) {
+            const artist = artistValue || 'Unknown Artist';
+            const artists = artist.includes('|') ? artist.split('|').map(a => a.trim()).filter(Boolean) : [artist];
+            if (!window.AURORA || !window.AURORA.isAuthenticated) {
+                return artists.map(name => `<span>${escapePDVHtml(name)}</span>`).join('<span class="artist-separator">/</span>');
+            }
+            return artists.map(name => (
+                `<a href="/artist/${encodeURIComponent(name)}/" class="artist-link">${escapePDVHtml(name)}</a>`
+            )).join('<span class="artist-separator">/</span>');
+        }
+
+        function setPDVSimilarState(title, detail = '') {
+            const container = getPDVSimilarContainer();
+            if (!container) return;
+            container.innerHTML = `
+                <div class="pdv-similar-state">
+                    <div class="pdv-similar-state-title">${escapePDVHtml(title)}</div>
+                    ${detail ? `<div class="pdv-similar-state-detail">${escapePDVHtml(detail)}</div>` : ''}
+                </div>
+            `;
+        }
+
+        function getCachedPDVSimilarSong(songId) {
+            const data = pdvSimilarCache.data;
+            if (!data || !Array.isArray(data.similar_songs)) return null;
+            return data.similar_songs.find(song => String(song.id) === String(songId)) || null;
+        }
+
+        window.playPDVSimilarSong = function(songId) {
+            const song = getCachedPDVSimilarSong(songId);
+            if (!song || !song.file_url) return;
+            loadAndPlay(song.file_url, song.title, song.artist, song.cover, song.id, true, song.album, true);
+        };
+
+        window.playFirstPDVSimilarSong = function() {
+            const songs = (pdvSimilarCache.data && pdvSimilarCache.data.similar_songs) || [];
+            if (songs.length) window.playPDVSimilarSong(songs[0].id);
+        };
+
+        window.openPDVRelatedPlaylist = function(url) {
+            if (!url) return;
+            if (window.closePDV) window.closePDV(false);
+            if (window.navigatePage) window.navigatePage(url);
+            else window.location.href = url;
+        };
+
+        function attachPDVSimilarActions(container) {
+            container.querySelectorAll('.pdv-related-playlist-card[data-url]').forEach(card => {
+                card.addEventListener('click', () => window.openPDVRelatedPlaylist(card.dataset.url));
+            });
+            container.querySelectorAll('.pdv-similar-song[data-song-id]').forEach(row => {
+                row.addEventListener('click', event => {
+                    if (event.target.closest('button, a')) return;
+                    window.playPDVSimilarSong(row.dataset.songId);
+                });
+            });
+            container.querySelectorAll('.pdv-similar-cover-play[data-song-id]').forEach(btn => {
+                btn.addEventListener('click', event => {
+                    event.stopPropagation();
+                    window.playPDVSimilarSong(btn.dataset.songId);
+                });
+            });
+            container.querySelectorAll('.pdv-similar-row-actions .row-action-btn[data-action]').forEach(btn => {
+                btn.addEventListener('click', event => {
+                    event.stopPropagation();
+                    const song = getCachedPDVSimilarSong(btn.dataset.songId);
+                    if (!song) return;
+                    if (btn.dataset.action === 'download') downloadSong(song.file_url, song.title);
+                    if (btn.dataset.action === 'like') toggleLike(song.id, btn, true);
+                    if (btn.dataset.action === 'playlist' && window.triggerAddToPlaylist) window.triggerAddToPlaylist(song.id);
+                });
+            });
+            const playAllBtn = container.querySelector('.pdv-similar-section-play');
+            if (playAllBtn) {
+                playAllBtn.addEventListener('click', event => {
+                    event.stopPropagation();
+                    window.playFirstPDVSimilarSong();
+                });
+            }
+            syncPlaybackElementsInContainer(!currentAudio.paused, container);
+        }
+
+        function renderPDVSimilarContent(data) {
+            const container = getPDVSimilarContainer();
+            if (!container) return;
+
+            const playlists = data.related_playlists || [];
+            const songs = data.similar_songs || [];
+
+            if (!playlists.length && !songs.length) {
+                setPDVSimilarState('No similar tracks found', 'Try another song with richer type, album, or artist metadata.');
+                return;
+            }
+
+            const playlistMarkup = playlists.length ? playlists.map(playlist => `
+                <button type="button" class="pdv-related-playlist-card" data-url="${escapePDVHtml(playlist.url)}">
+                    <span class="pdv-related-cover-wrap">
+                        <img class="pdv-related-cover" src="${escapePDVHtml(playlist.cover)}" alt="">
+                    </span>
+                    <span class="pdv-related-title">${escapePDVHtml(playlist.name)}</span>
+                    <span class="pdv-related-meta">${escapePDVHtml(`${playlist.song_count || 0} songs`)}</span>
+                </button>
+            `).join('') : '<div class="pdv-similar-empty-inline">No related playlists</div>';
+
+            const songMarkup = songs.length ? songs.map(song => `
+                <div class="pdv-similar-song" data-song-id="${escapePDVHtml(song.id)}">
+                    <div class="song-cell-title">
+                        <div class="pdv-similar-cover-wrap">
+                            <img class="pdv-similar-song-cover" src="${escapePDVHtml(song.cover)}" alt="">
+                            <button type="button" class="pdv-similar-cover-play" data-song-id="${escapePDVHtml(song.id)}" title="Play">
+                                <svg class="icon-play" viewBox="0 0 16 16" aria-hidden="true">
+                                    <path fill="currentColor" d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+                                </svg>
+                                <svg class="icon-pause" viewBox="0 0 16 16" aria-hidden="true" style="display:none;">
+                                    <path fill="currentColor" d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="pdv-similar-song-main">
+                            <div class="pdv-similar-song-title song-title-text song-title-link">${escapePDVHtml(song.title)}</div>
+                            <div class="pdv-similar-song-meta hover-marquee-wrapper">
+                                <div class="hover-marquee-content">${renderPDVArtistLinks(song.artist)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pdv-similar-row-actions row-action-pill is-3-buttons" onclick="event.stopPropagation()">
+                        <div class="row-action-btn" data-action="download" data-song-id="${escapePDVHtml(song.id)}" title="Download">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                        </div>
+                        <div class="row-action-btn" data-action="like" data-song-id="${escapePDVHtml(song.id)}" title="Like">
+                            <span class="pdv-similar-heart song-row-heart ${song.is_liked ? 'is-liked' : ''}" data-song-id="${escapePDVHtml(song.id)}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#ff4444" viewBox="0 0 16 16" class="heart-filled">
+                                    <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/>
+                                </svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="heart-empty">
+                                    <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z"/>
+                                </svg>
+                            </span>
+                        </div>
+                        <div class="row-action-btn" data-action="playlist" data-song-id="${escapePDVHtml(song.id)}" title="Add to Playlist">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            `).join('') : '<div class="pdv-similar-empty-inline">No similar songs</div>';
+
+            container.innerHTML = `
+                <div class="pdv-similar-scroll">
+                    <section class="pdv-similar-section">
+                        <div class="pdv-similar-section-head">
+                            <h3>Related Playlists</h3>
+                        </div>
+                        <div class="pdv-related-playlist-grid">${playlistMarkup}</div>
+                    </section>
+                    <section class="pdv-similar-section">
+                        <div class="pdv-similar-section-head">
+                            <h3>Similar Songs</h3>
+                            ${songs.length ? `
+                            <button type="button" class="pdv-similar-section-play">
+                                <svg viewBox="0 0 16 16" aria-hidden="true">
+                                    <path fill="currentColor" d="M4.5 3.2v9.6c0 .5.6.8 1 .5l7.1-4.8c.4-.3.4-.8 0-1.1L5.5 2.7c-.4-.3-1 0-1 .5z"/>
+                                </svg>
+                                <span>Play</span>
+                            </button>` : ''}
+                        </div>
+                        <div class="pdv-similar-song-list">${songMarkup}</div>
+                    </section>
+                </div>
+            `;
+            attachPDVSimilarActions(container);
+        }
+
+        window.loadPDVSimilarTracks = async function(force = false) {
+            const songId = window.currentSongId;
+            if (!songId) {
+                setPDVSimilarState('No track selected');
+                return;
+            }
+
+            const cleanSongId = String(songId);
+            const requestId = ++pdvSimilarRequestId;
+            pdvSimilarCache = { songId: cleanSongId, data: null };
+            setPDVSimilarState('Finding similar tracks...');
+
+            try {
+                const response = await fetch(`/api/songs/${encodeURIComponent(cleanSongId)}/similar/`);
+                const data = await response.json();
+                if (requestId !== pdvSimilarRequestId) return;
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Similar content request failed');
+                }
+                pdvSimilarCache = { songId: cleanSongId, data };
+                renderPDVSimilarContent(data);
+            } catch (error) {
+                if (requestId !== pdvSimilarRequestId) return;
+                console.error('[PDV] Failed to load similar tracks', error);
+                setPDVSimilarState('Failed to load similar tracks', 'Please try again later.');
+            }
+        };
 
         // Debug Tool
         window.debugPlayer = function() {
@@ -1207,6 +1427,10 @@
 
                 // Pre-update PDV components (Mini Header etc)
                 if (window.updatePDVComponents) window.updatePDVComponents();
+                const similarPane = document.getElementById('pdv-tab-similar');
+                if (similarPane && similarPane.classList.contains('active-pane') && window.loadPDVSimilarTracks) {
+                    window.loadPDVSimilarTracks();
+                }
             };
 
             window.updatePDVComponents = function() {
@@ -1299,6 +1523,7 @@
                             if (pane) {
                                 pane.style.display = 'block';
                                 pane.classList.add('active-pane');
+                                if (window.loadPDVSimilarTracks) window.loadPDVSimilarTracks();
                             }
                         }
                     });
@@ -1721,7 +1946,8 @@
                 `.song-row[data-song-id="${CSS.escape(String(songId))}"]`,
                 `.topviews-item[data-song-id="${CSS.escape(String(songId))}"]`,
                 `.recent-item[data-song-id="${CSS.escape(String(songId))}"]`,
-                `.compact-item[data-song-id="${CSS.escape(String(songId))}"]`
+                `.compact-item[data-song-id="${CSS.escape(String(songId))}"]`,
+                `.pdv-similar-song[data-song-id="${CSS.escape(String(songId))}"]`
             ].join(',');
 
             container.querySelectorAll(selector).forEach(el => {
@@ -1730,7 +1956,7 @@
         }
 
         function syncPlaybackElementsInContainer(isPlaying, container) {
-            container.querySelectorAll('.glass-card, .song-row, .topviews-item, .recent-item, .compact-item').forEach(el => {
+            container.querySelectorAll('.glass-card, .song-row, .topviews-item, .recent-item, .compact-item, .pdv-similar-song').forEach(el => {
                 const isCurrent = el.getAttribute('data-song-id') == window.currentSongId;
                 syncPlaybackElement(el, isCurrent, isPlaying);
             });
@@ -1940,6 +2166,10 @@
                                 const pdvOverlay = document.getElementById('player-details-view');
                                 if (pdvOverlay && pdvOverlay.classList.contains('active')) {
                                     if (window.updatePDVComponents) window.updatePDVComponents();
+                                    const similarPane = document.getElementById('pdv-tab-similar');
+                                    if (similarPane && similarPane.classList.contains('active-pane') && window.loadPDVSimilarTracks) {
+                                        window.loadPDVSimilarTracks(true);
+                                    }
                                     // If in comment mode, refresh comments synchronously
                                     if (pdvOverlay.classList.contains('comment-mode') && window.refreshPDVComments) {
                                         window.refreshPDVComments(songId);

@@ -310,6 +310,134 @@ class IndexViewTest(TestCase):
         )
         self.assertNotIn('R18 Work Candidate', recommended_names)
 
+    def test_pdv_similar_api_uses_type_album_artist_and_excludes_r18(self):
+        owner = User.objects.create(
+            username='playlist_owner',
+            password='password123',
+            status='Active',
+            email='owner@example.com',
+        )
+        other_owner = User.objects.create(
+            username='other_owner',
+            password='password123',
+            status='Active',
+            email='other@example.com',
+        )
+        source_song = Song.objects.create(
+            name='Source Track',
+            album='Shared Album',
+            arrangement='Artist A | Artist B',
+            song_type='Touhou | Work',
+            release_date=datetime.date(2024, 1, 1),
+            download_link='songs/source-track.mp3',
+            views=10,
+        )
+        strongest_match = Song.objects.create(
+            name='Album Artist Type Match',
+            album='Shared Album',
+            arrangement='Artist B',
+            song_type='Original | Work',
+            release_date=datetime.date(2024, 1, 2),
+            download_link='songs/album-artist-type-match.mp3',
+            views=1,
+        )
+        type_match = Song.objects.create(
+            name='Type Only Match',
+            album='Different Album',
+            arrangement='Artist C',
+            song_type='Work | Jazz',
+            release_date=datetime.date(2024, 1, 3),
+            download_link='songs/type-only-match.mp3',
+            views=999,
+        )
+        Song.objects.create(
+            name='Unrelated Track',
+            album='Different Album',
+            arrangement='Artist D',
+            song_type='Jazz',
+            release_date=datetime.date(2024, 1, 4),
+            download_link='songs/unrelated-track.mp3',
+            views=2000,
+        )
+        Song.objects.create(
+            name='Hidden Similar R18',
+            album='Shared Album',
+            arrangement='Artist A',
+            song_type='R18 | Work',
+            release_date=datetime.date(2024, 1, 5),
+            download_link='songs/hidden-similar-r18.mp3',
+            views=5000,
+        )
+
+        public_playlist = Playlist.objects.create(
+            user=owner,
+            name='Public Related Mix',
+            is_private=False,
+        )
+        public_playlist.songs.set([source_song, strongest_match, type_match])
+        private_playlist = Playlist.objects.create(
+            user=other_owner,
+            name='Other Private Mix',
+            is_private=True,
+        )
+        private_playlist.songs.set([source_song, strongest_match])
+
+        response = self.client.get(reverse('music:song_similar_api', args=[source_song.id]))
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        similar_titles = [song['title'] for song in data['similar_songs']]
+        self.assertNotIn(source_song.name, similar_titles)
+        self.assertNotIn('Hidden Similar R18', similar_titles)
+        self.assertIn(strongest_match.name, similar_titles)
+        self.assertIn(type_match.name, similar_titles)
+        self.assertLess(similar_titles.index(strongest_match.name), similar_titles.index(type_match.name))
+        self.assertNotIn('reasons', data['similar_songs'][0])
+        self.assertNotIn('views', data['similar_songs'][0])
+
+        playlist_names = [playlist['name'] for playlist in data['related_playlists']]
+        self.assertIn(public_playlist.name, playlist_names)
+        self.assertNotIn(private_playlist.name, playlist_names)
+        self.assertTrue(all('reason' not in playlist for playlist in data['related_playlists']))
+        self.assertTrue(all('views' not in playlist for playlist in data['related_playlists']))
+
+    def test_pdv_similar_api_randomizes_close_matches(self):
+        source_song = Song.objects.create(
+            name='Random Source',
+            album='Source Album',
+            arrangement='Source Artist',
+            song_type='Game',
+            release_date=datetime.date(2024, 2, 1),
+            download_link='songs/random-source.mp3',
+        )
+        first_match = Song.objects.create(
+            name='First Close Match',
+            album='First Album',
+            arrangement='First Artist',
+            song_type='Game',
+            release_date=datetime.date(2024, 2, 2),
+            download_link='songs/first-close-match.mp3',
+        )
+        second_match = Song.objects.create(
+            name='Second Close Match',
+            album='Second Album',
+            arrangement='Second Artist',
+            song_type='Game',
+            release_date=datetime.date(2024, 2, 3),
+            download_link='songs/second-close-match.mp3',
+        )
+
+        with mock.patch('music.views.random.random', side_effect=[0.0, 1.0]):
+            low_high_response = self.client.get(reverse('music:song_similar_api', args=[source_song.id]))
+        with mock.patch('music.views.random.random', side_effect=[1.0, 0.0]):
+            high_low_response = self.client.get(reverse('music:song_similar_api', args=[source_song.id]))
+
+        low_high_titles = [song['title'] for song in low_high_response.json()['similar_songs']]
+        high_low_titles = [song['title'] for song in high_low_response.json()['similar_songs']]
+        self.assertEqual(low_high_titles[:2], [second_match.name, first_match.name])
+        self.assertEqual(high_low_titles[:2], [first_match.name, second_match.name])
+
     def test_guest_index_hides_playlist_square(self):
         response = self.client.get(reverse('music:index'))
 

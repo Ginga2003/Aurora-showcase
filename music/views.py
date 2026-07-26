@@ -30,6 +30,18 @@ from .type_rules import TYPE_SEPARATOR, SECONDARY_TYPE_SET, split_song_types
 
 RECOMMENDATION_LIMIT = 10
 RECOMMENDATION_SESSION_VERSION = 'type-secondary-v1'
+PDV_SIMILAR_SONG_LIMIT = 8
+PDV_RELATED_PLAYLIST_LIMIT = 3
+UNKNOWN_ALBUM_KEYS = {
+    '',
+    'unknown album',
+    'unknown artist/album',
+}
+UNKNOWN_ARTIST_KEYS = {
+    '',
+    'unknown artist',
+    'unknown artist/album',
+}
 
 
 def _type_filter(type_name):
@@ -233,6 +245,177 @@ def _sanitize_recommendation_ids(song_ids):
 
     valid_ids = set(_non_r18_song_queryset().filter(id__in=clean_ids).values_list('id', flat=True))
     return [song_id for song_id in clean_ids if song_id in valid_ids]
+
+
+def _metadata_key(value, unknown_keys):
+    key = str(value or '').strip().casefold()
+    if key in unknown_keys:
+        return None
+    return key
+
+
+def _album_key(song):
+    return _metadata_key(song.album, UNKNOWN_ALBUM_KEYS)
+
+
+def _artist_keys(song):
+    keys = []
+    for raw_name in str(song.arrangement or '').split(TYPE_SEPARATOR):
+        key = _metadata_key(raw_name, UNKNOWN_ARTIST_KEYS)
+        if key and key not in keys:
+            keys.append(key)
+    return keys
+
+
+def _song_type_weight_map(song):
+    weights = {}
+    for index, type_name in enumerate(split_song_types(song.song_type)):
+        weights[type_name] = max(weights.get(type_name, 0), _type_member_weight(type_name, index))
+    return weights
+
+
+def _similar_song_score(source_song, candidate, include_popularity=True):
+    source_type_weights = _song_type_weight_map(source_song)
+    source_album_key = _album_key(source_song)
+    candidate_album_key = _album_key(candidate)
+    source_artist_keys = set(_artist_keys(source_song))
+    candidate_artist_keys = set(_artist_keys(candidate))
+
+    score = 0
+    reasons = []
+
+    for index, type_name in enumerate(split_song_types(candidate.song_type)):
+        if type_name not in source_type_weights:
+            continue
+        score += (source_type_weights[type_name] + _type_member_weight(type_name, index)) * 2.0
+
+    if source_album_key and source_album_key == candidate_album_key:
+        score += 7.0
+        reasons.append('Same album')
+
+    shared_artists = sorted(source_artist_keys.intersection(candidate_artist_keys))
+    if shared_artists:
+        score += len(shared_artists) * 5.0
+        reasons.append('Same artist')
+
+    if include_popularity:
+        score += min(candidate.views or 0, 20000) / 20000
+        score += min(getattr(candidate, 'comment_count', 0) or 0, 50) / 80
+
+    return score, reasons[:4]
+
+
+def _select_similar_song_rows(scored_rows, limit):
+    selected = []
+    selected_ids = set()
+    album_counts = {}
+    artist_counts = {}
+
+    for metadata_limit in (3, 4, None):
+        for song, score, reasons in scored_rows:
+            if song.id in selected_ids:
+                continue
+            album_key = _album_key(song)
+            artist_keys = _artist_keys(song)
+            if metadata_limit is not None and album_key and album_counts.get(album_key, 0) >= metadata_limit:
+                continue
+            if metadata_limit is not None and any(artist_counts.get(key, 0) >= metadata_limit for key in artist_keys):
+                continue
+
+            selected.append((song, score, reasons))
+            selected_ids.add(song.id)
+            if album_key:
+                album_counts[album_key] = album_counts.get(album_key, 0) + 1
+            for artist_key in artist_keys:
+                artist_counts[artist_key] = artist_counts.get(artist_key, 0) + 1
+            if len(selected) >= limit:
+                return selected
+
+    return selected
+
+
+def _similar_song_payload(song, liked_song_ids=None):
+    return {
+        'id': song.id,
+        'title': song.name,
+        'artist': song.arrangement or 'Unknown Artist',
+        'album': song.album or 'Unknown Album',
+        'cover': _song_cover_url(song.cover),
+        'file_url': song.download_link.url if song.download_link else '',
+        'is_liked': song.id in (liked_song_ids or set()),
+        'song_type': song.song_type or '',
+        'comment_count': getattr(song, 'comment_count', 0) or 0,
+    }
+
+
+def _build_similar_song_rows(source_song, custom_user=None, limit=PDV_SIMILAR_SONG_LIMIT):
+    liked_song_ids = set()
+    if custom_user:
+        liked_song_ids = set(custom_user.favorite_songs.values_list('id', flat=True))
+
+    candidates = list(
+        _non_r18_song_queryset()
+        .exclude(id=source_song.id)
+        .annotate(comment_count=models.Count('comments'))
+        .order_by('id')
+    )
+    scored_rows = []
+    for candidate in candidates:
+        score, reasons = _similar_song_score(source_song, candidate)
+        if score <= 0:
+            continue
+        random_window = min(2.0, max(0.45, score * 0.12))
+        scored_rows.append((candidate, score + random.random() * random_window, reasons))
+
+    scored_rows.sort(key=lambda item: (-item[1], -(item[0].views or 0), item[0].name.casefold(), item[0].id))
+    selected_rows = _select_similar_song_rows(scored_rows, limit)
+    return [
+        _similar_song_payload(song, liked_song_ids)
+        for song, _score, _reasons in selected_rows
+    ]
+
+
+def _build_related_playlist_rows(source_song, custom_user=None, limit=PDV_RELATED_PLAYLIST_LIMIT):
+    visible_song_ids = set(_non_r18_song_queryset().values_list('id', flat=True))
+    playlist_filter = Q(is_private=False)
+    if custom_user:
+        playlist_filter |= Q(user=custom_user)
+
+    playlist_rows = []
+    playlists = Playlist.objects.filter(playlist_filter).select_related('user').prefetch_related('songs')
+    source_is_visible = source_song.id in visible_song_ids
+    for playlist in playlists:
+        playlist_songs = list(playlist.songs.all())
+        visible_songs = [song for song in playlist_songs if song.id in visible_song_ids]
+        contains_current = source_is_visible and any(song.id == source_song.id for song in visible_songs)
+
+        score = 12.0 if contains_current else 0.0
+        for song in visible_songs:
+            if song.id == source_song.id:
+                continue
+            song_score, _reasons = _similar_song_score(source_song, song, include_popularity=False)
+            if song_score <= 0:
+                continue
+            score += min(song_score, 12.0)
+
+        if score <= 0:
+            continue
+
+        playlist_rows.append((playlist, score + min(playlist.views or 0, 20000) / 20000))
+
+    playlist_rows.sort(key=lambda item: (-item[1], item[0].name.casefold(), item[0].id))
+    return [
+        {
+            'id': playlist.id,
+            'name': playlist.name,
+            'cover': _playlist_cover_url(playlist.cover),
+            'url': reverse('music:playlist_detail_frontend', args=[playlist.id]),
+            'creator': playlist.user.username,
+            'song_count': playlist.songs.count(),
+        }
+        for playlist, _score in playlist_rows[:limit]
+    ]
+
 
 def _busted_url(cover_field, default, default_marker):
     if not cover_field:
@@ -1811,6 +1994,29 @@ def get_song_details(request, song_id):
         })
     except Song.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Song not found'})
+
+
+def get_similar_content(request, song_id):
+    """Fetch PDV similar songs and related playlists for the current track."""
+    try:
+        source_song = Song.objects.get(id=song_id)
+    except Song.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Song not found'}, status=404)
+
+    custom_user = None
+    if request.user.is_authenticated:
+        try:
+            custom_user = CustomUser.objects.get(username=request.user.username)
+        except CustomUser.DoesNotExist:
+            custom_user = None
+
+    return JsonResponse({
+        'success': True,
+        'song_id': source_song.id,
+        'related_playlists': _build_related_playlist_rows(source_song, custom_user),
+        'similar_songs': _build_similar_song_rows(source_song, custom_user),
+    })
+
 
 def update_playlist(request):
     if request.method != 'POST':

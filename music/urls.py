@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/toggle-playlist-favorite/', views.toggle_playlist_favorite, name='toggle_playlist_favorite'),
     path('api/get-favorited-playlists/', views.get_favorited_playlists, name='get_favorited_playlists'),
     path('api/song-details/<int:song_id>/', views.get_song_details, name='get_song_details'),
+    path('api/songs/<int:song_id>/similar/', views.get_similar_content, name='song_similar_api'),
     path('playlist/<str:playlist_id>/', views.playlist_detail, name='playlist_detail_frontend'),
     path('playlist/<str:playlist_id>/edit/', views.playlist_detail, name='playlist_edit_frontend'),
     path('album/<path:album_name>/', views.album_detail, name='album_detail_frontend'),
