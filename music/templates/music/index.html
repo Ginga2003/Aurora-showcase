@@ -408,7 +408,19 @@ document.addEventListener('click', function(e) {
         .then(function(r) { return r.json(); })
         .then(function(data) {
             var wrap = btn.closest('.type-load-more-wrap');
-            wrap.insertAdjacentHTML('beforebegin', data.html);
+            var existingIds = new Set(Array.from(panel.querySelectorAll('.song-row[data-song-id]')).map(function(row) {
+                return row.dataset.songId;
+            }));
+            var fragment = document.createElement('div');
+            fragment.innerHTML = data.html;
+            Array.from(fragment.querySelectorAll('.song-row[data-song-id]')).forEach(function(row) {
+                if (existingIds.has(row.dataset.songId)) {
+                    row.remove();
+                } else {
+                    existingIds.add(row.dataset.songId);
+                }
+            });
+            wrap.insertAdjacentHTML('beforebegin', fragment.innerHTML);
             panel.dataset.page = nextPage;
             if (!data.has_more) wrap.remove();
             else { btn.disabled = false; btn.textContent = 'Load More'; }

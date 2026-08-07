@@ -2054,15 +2054,8 @@
                 if (commentBtnEl) commentBtnEl.classList.toggle('no-song', !isAuthenticated);
 
                 if (isNewId) {
-                    // Increment View Count
                     const postData = new FormData();
                     postData.append('song_id', songId);
-                    
-                    fetch('/api/increment-song-view/', {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': getCookie('csrftoken') },
-                        body: postData
-                    });
 
                     // Record to Play History
                     if (isAuthenticated) {
@@ -2580,6 +2573,25 @@
 
             // Audio Events
             currentAudio.addEventListener('ended', () => {
+                const completedSongId = window.currentSongId;
+                if (completedSongId) {
+                    const postData = new FormData();
+                    postData.append('song_id', completedSongId);
+
+                    fetch('/api/increment-song-view/', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                        body: postData
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            const encyViews = document.getElementById('ency-views');
+                            if (data.success && encyViews) {
+                                encyViews.textContent = (data.views || 0).toLocaleString();
+                            }
+                        })
+                        .catch(() => {});
+                }
                 playNext(true);
             });
             

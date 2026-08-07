@@ -624,7 +624,7 @@ def index(request, playlist_id=None):
     type_songs = {}
     for stype in type_list[:1]:
         tqs = Song.objects.filter(_type_filter(stype)).annotate(
-            comment_count=models.Count('comments')).order_by('-views')[:8]
+            comment_count=models.Count('comments')).order_by('-views', 'name', 'id')[:8]
         type_songs[stype] = process_songs(list(tqs))
 
     id_order = {id_: i for i, id_ in enumerate(selected_ids)}
@@ -661,7 +661,7 @@ def type_songs_api(request):
     offset = (page - 1) * PAGE_SIZE
     songs = list(Song.objects.filter(_type_filter(stype)).annotate(
         comment_count=models.Count('comments')
-    ).order_by('-views')[offset:offset + PAGE_SIZE + 1])
+    ).order_by('-views', 'name', 'id')[offset:offset + PAGE_SIZE + 1])
 
     has_more = len(songs) > PAGE_SIZE
     songs = songs[:PAGE_SIZE]
