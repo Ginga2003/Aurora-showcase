@@ -73,7 +73,12 @@ class Command(BaseCommand):
 
         auth_user, _ = AuthUser.objects.update_or_create(
             username=username,
-            defaults={"email": email, "is_active": True, "is_staff": True, "is_superuser": True},
+            defaults={
+                "email": email,
+                "is_active": True,
+                "is_staff": False,
+                "is_superuser": False,
+            },
         )
         auth_user.set_password(password)
         auth_user.save()
