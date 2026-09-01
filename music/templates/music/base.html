@@ -51,7 +51,8 @@
     </script>
 
     <!-- External JS (extracted from inline) -->
-    <script src="{% static 'music/js/player.js' %}?v=2.5-showcase" defer></script>
+    <script src="{% static 'music/js/audio_quality.js' %}?v=2.0-showcase" defer></script>
+    <script src="{% static 'music/js/player.js' %}?v=3.0-showcase" defer></script>
     <script src="{% static 'music/js/app.js' %}?v=1.3" defer></script>
     <!-- AURORA Custom Titlebar CSS -->
     <style>
@@ -471,6 +472,56 @@
                         <path d="M6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06zm7.137 2.096a.5.5 0 0 1 0 .708L12.207 8l1.647 1.646a.5.5 0 0 1-.708.708L11.5 8.707l-1.646 1.647a.5.5 0 0 1-.708-.708L10.793 8 9.146 6.354a.5.1 0 1 1 .708-.708L11.5 7.293l1.646-1.647a.5.5 0 0 1 .708 0z" />
                     </svg>
                 </button>
+            </div>
+
+            <div class="audio-quality-container">
+                <button class="player-right-action" id="audio-quality-btn" title="Audio Quality" aria-expanded="false" aria-controls="audio-quality-panel">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 20 20" aria-hidden="true">
+                        <path d="M2 10h2l1.4-4.4L8.2 15l2.2-9 2.1 6.2L14 10h4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <div class="audio-quality-panel" id="audio-quality-panel">
+                    <div class="audio-quality-heading">
+                        <span>Audio Quality</span>
+                        <span class="audio-quality-heading-actions">
+                            <span id="audio-quality-status">No Track</span>
+                            <button type="button" id="audio-quality-relearn-btn" title="Relearn loudness" aria-label="Relearn loudness" hidden disabled>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 16 16" aria-hidden="true">
+                                    <path d="M13.4 5.3A5.7 5.7 0 1 0 13.5 10" stroke-linecap="round"/>
+                                    <path d="M10.7 2.7h2.9v2.9" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </span>
+                    </div>
+                    <label class="audio-quality-option">
+                        <span>
+                            <strong>Volume normalization</strong>
+                            <small>ReplayGain or learned loudness</small>
+                        </span>
+                        <input type="checkbox" data-audio-setting="normalization">
+                    </label>
+                    <label class="audio-quality-option">
+                        <span>
+                            <strong>Peak protection</strong>
+                            <small>Prevent boosted tracks from clipping</small>
+                        </span>
+                        <input type="checkbox" data-audio-setting="peakProtection">
+                    </label>
+                    <label class="audio-quality-option">
+                        <span>
+                            <strong>Preload next track</strong>
+                            <small>Reduce the delay between songs</small>
+                        </span>
+                        <input type="checkbox" data-audio-setting="preloadNext">
+                    </label>
+                    <label class="audio-quality-option">
+                        <span>
+                            <strong>Smooth transitions</strong>
+                            <small>Short fade on pause and track changes</small>
+                        </span>
+                        <input type="checkbox" data-audio-setting="smoothTransitions">
+                    </label>
+                </div>
             </div>
 
             <!-- Global Options Dropdown menu -->

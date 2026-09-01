@@ -68,6 +68,32 @@ class User(models.Model):
         return self.username
 
 
+class ProgramPhase(models.Model):
+    STATION_CHOICES = (
+        ('dawn', 'Dawn Blessing'),
+        ('midnight', 'Midnight Radio'),
+        ('mood', 'Mood Journal'),
+        ('study', 'Study Focus'),
+    )
+
+    slug = models.SlugField(max_length=50, unique=True)
+    name = models.CharField(max_length=100)
+    station = models.CharField(max_length=20, choices=STATION_CHOICES, db_index=True)
+    phase_order = models.PositiveSmallIntegerField(default=1)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['station', 'phase_order', 'name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['station', 'phase_order'],
+                name='unique_program_station_phase',
+            ),
+        ]
+
+
 # 2. Song Model
 class Song(models.Model):
     name = models.CharField(max_length=100) 
@@ -82,6 +108,7 @@ class Song(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, null=True, db_index=True)
     views = models.IntegerField(default=0)
     download_link = models.FileField(upload_to=song_audio_path, null=True, blank=True)
+    program_phases = models.ManyToManyField(ProgramPhase, related_name='songs', blank=True)
     
     favorited_by = models.ManyToManyField(User, related_name='favorite_songs', blank=True)
 

@@ -18,9 +18,11 @@ Aurora 是一个基于 Django 的音乐库管理与播放 Web 应用，并提供
 - 音乐库浏览、搜索、专辑页和艺术家页。
 - 歌单创建、编辑、收藏和歌单排序。
 - 基于 HTML5 Audio 的全局播放器与播放队列。
+- 播放器音质面板，提供整曲响度学习、音量统一、峰值保护、下一首预加载和平滑切换。
 - `.lrc` 歌词显示。
 - 评论和回复交互。
 - 自定义 Django Admin 页面，用于管理歌曲、用户、歌单和元数据。
+- 管理员可将歌曲归入 Dawn、Midnight、Mood、Study 四组场景电台及其细分阶段。
 - 管理员数据看板，用于查看最近加入的歌曲、活跃用户、热门歌曲、类型分布和近期活动。
 - 可选 Electron 桌面入口，用于本地桌面演示。
 
@@ -61,6 +63,8 @@ python manage.py reset_showcase --noinput
 - 上传的歌曲封面和歌单封面。
 - 服务日志、数据库备份和本地缓存目录。
 - 之前的私有内容开关和过滤机制。
+
+仓库默认状态没有歌曲，因此音质面板显示 `No Track`，也不会伪造响度学习结果。管理员仍可查看场景电台分类结构；导入自己的合法音频后，音质学习与分类功能即可正常使用。
 
 本地工作目录可以临时生成 SQLite 数据库用于测试，但数据库已被 Git 忽略，不应提交。
 
@@ -214,9 +218,11 @@ This copy is intended as a public portfolio version, not as a production deploym
 - Music library browsing, search, album pages, and artist pages.
 - Playlist creation, playlist editing, favorites, and playlist ordering.
 - Persistent global HTML5 audio player with queue management.
+- Audio Quality controls with full-track loudness learning, volume normalization, peak protection, next-track preloading, and smooth transitions.
 - Lyrics display from `.lrc` files.
 - Comment and reply interactions.
 - Custom Django Admin pages for managing songs, users, playlists, and metadata.
+- Admin assignment of songs to Dawn, Midnight, Mood, and Study radio groups and their program phases.
 - Admin analytics dashboard for recent catalog entries, active users, top songs, type distribution, and recent activity.
 - Optional Electron shell for local desktop demos.
 
@@ -257,6 +263,8 @@ This copy intentionally does not include:
 - Uploaded song covers and playlist covers.
 - Server logs, backup databases, and local cache folders.
 - The previous private-content toggle and filtering mechanism.
+
+The repository starts with no songs, so the Audio Quality panel reports `No Track` and does not fabricate learned loudness data. The radio taxonomy remains visible in the admin interface; importing legally sourced audio enables the real learning and assignment workflows.
 
 The local working copy may temporarily create a small SQLite database for testing. The database is ignored by Git and should not be committed.
 

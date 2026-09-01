@@ -16,7 +16,7 @@ import re
 import tempfile
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3
-from .models import User, Song, Playlist, PlaylistSong, FavoriteSongPosition, Comment, PlayHistory, Feedback, Invitation
+from .models import User, Song, ProgramPhase, Playlist, PlaylistSong, FavoriteSongPosition, Comment, PlayHistory, Feedback, Invitation
 from .type_rules import TYPE_SEPARATOR, split_song_types
 
 
@@ -49,6 +49,13 @@ class SongTypeListFilter(admin.SimpleListFilter):
 
 
 class SongAdminForm(forms.ModelForm):
+    program_phases = forms.ModelMultipleChoiceField(
+        queryset=ProgramPhase.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label='Program Phases',
+    )
+
     class Meta:
         model = Song
         fields = '__all__'
@@ -255,8 +262,8 @@ class ReturnToListAdminMixin:
 class SongAdmin(ReturnToListAdminMixin, admin.ModelAdmin):
     form = SongAdminForm
     list_display = ('name', 'album', 'track_number', 'cover_preview', 'song_type', 'release_date')
-    search_fields = ('name', 'album')
-    list_filter = (SongTypeListFilter, 'release_date')
+    search_fields = ('name', 'album', 'program_phases__name')
+    list_filter = (SongTypeListFilter, 'program_phases', 'release_date')
     change_list_template = 'admin/music/song/change_list.html'
     change_form_template = 'admin/music/song/change_form.html'
 

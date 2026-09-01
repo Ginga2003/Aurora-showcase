@@ -144,6 +144,110 @@
         color-scheme: dark;
     }
 
+    #id_program_phases {
+        display: block;
+        margin: 0;
+        padding: 0;
+    }
+
+    .radio-phase-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 13px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    }
+
+    .radio-phase-tab {
+        position: relative;
+        min-width: 0;
+        padding: 4px 4px 11px;
+        border: 0;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.42);
+        font: inherit;
+        font-size: 14px;
+        font-weight: 650;
+        cursor: pointer;
+        transition: color 0.2s ease;
+    }
+
+    .radio-phase-tab::after {
+        content: '';
+        position: absolute;
+        right: 12%;
+        bottom: -1px;
+        left: 12%;
+        height: 3px;
+        border-radius: 999px;
+        background: var(--jewel-red);
+        opacity: 0;
+        transform: scaleX(0.55);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .radio-phase-tab:hover {
+        color: rgba(255, 255, 255, 0.76);
+    }
+
+    .radio-phase-tab.active {
+        color: #fff;
+    }
+
+    .radio-phase-tab.active::after {
+        opacity: 1;
+        transform: scaleX(1);
+    }
+
+    .radio-phase-panel {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 9px;
+    }
+
+    .radio-phase-panel[hidden] {
+        display: none !important;
+    }
+
+    #id_program_phases label {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 40px;
+        margin: 0;
+        padding: 8px 11px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        background: rgba(10, 8, 8, 0.42);
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: none;
+        transition: border-color 0.2s, background 0.2s, color 0.2s;
+        cursor: pointer;
+        box-sizing: border-box;
+    }
+
+    #id_program_phases label:hover {
+        border-color: var(--jewel-red);
+        background: rgba(255, 255, 255, 0.07);
+        color: #fff;
+    }
+
+    #id_program_phases input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        accent-color: var(--jewel-red);
+        flex: 0 0 auto;
+    }
+
+    @media (max-width: 760px) {
+        .radio-phase-panel {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
     /* 6. Admin Overrides (Hiding the clutter) */
     #change_form .module {
         background: transparent !important;
@@ -332,6 +436,11 @@
                     </div>
                 </div>
 
+                <div class="custom-field-row">
+                    <label>Radio Types</label>
+                    {{ adminform.form.program_phases }}
+                </div>
+
                 <!-- Introduction -->
                 <div class="custom-field-row">
                     <label>Introduction</label>
@@ -509,6 +618,85 @@
         
         const intro = document.getElementById('id_introduction');
         if (intro) intro.classList.add('custom-textarea');
+
+        const phaseRoot = document.getElementById('id_program_phases');
+        if (phaseRoot && !phaseRoot.dataset.tabbed) {
+            const groupOrder = ['Dawn', 'Midnight', 'Mood', 'Study'];
+            const groupedOptions = new Map(groupOrder.map(name => [name, []]));
+            const options = Array.from(phaseRoot.children);
+
+            options.forEach(option => {
+                const label = option.querySelector('label');
+                const input = option.querySelector('input[type="checkbox"]');
+                if (!label || !input) return;
+
+                const fullLabel = label.textContent.trim();
+                const parts = fullLabel.split(/\s+-\s+/);
+                const groupName = parts.shift();
+                if (!groupedOptions.has(groupName)) return;
+
+                Array.from(label.childNodes).forEach(node => {
+                    if (node.nodeType === Node.TEXT_NODE) node.remove();
+                });
+                const detail = document.createElement('span');
+                detail.textContent = parts.join(' - ') || fullLabel;
+                label.appendChild(detail);
+                groupedOptions.get(groupName).push(option);
+            });
+
+            const tabs = document.createElement('div');
+            tabs.className = 'radio-phase-tabs';
+            tabs.setAttribute('role', 'tablist');
+            tabs.setAttribute('aria-label', 'Radio groups');
+
+            const panels = document.createElement('div');
+            panels.className = 'radio-phase-panels';
+            const tabButtons = [];
+
+            groupOrder.forEach(groupName => {
+                const tab = document.createElement('button');
+                const panel = document.createElement('div');
+                const panelId = `radio-phase-panel-${groupName.toLowerCase()}`;
+
+                tab.type = 'button';
+                tab.className = 'radio-phase-tab';
+                tab.dataset.group = groupName;
+                tab.setAttribute('role', 'tab');
+                tab.setAttribute('aria-controls', panelId);
+                tab.append(document.createTextNode(groupName));
+
+                panel.id = panelId;
+                panel.className = 'radio-phase-panel';
+                panel.dataset.group = groupName;
+                panel.setAttribute('role', 'tabpanel');
+                groupedOptions.get(groupName).forEach(option => panel.appendChild(option));
+
+                tabs.appendChild(tab);
+                panels.appendChild(panel);
+                tabButtons.push({ tab, panel });
+            });
+
+            function selectPhaseGroup(groupName) {
+                tabButtons.forEach(({ tab, panel }) => {
+                    const active = tab.dataset.group === groupName;
+                    tab.classList.toggle('active', active);
+                    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+                    tab.tabIndex = active ? 0 : -1;
+                    panel.hidden = !active;
+                });
+            }
+
+            phaseRoot.textContent = '';
+            phaseRoot.dataset.tabbed = 'true';
+            phaseRoot.append(tabs, panels);
+
+            tabButtons.forEach(({ tab }) => {
+                tab.addEventListener('click', () => selectPhaseGroup(tab.dataset.group));
+            });
+
+            const selectedGroup = tabButtons.find(({ panel }) => panel.querySelector('input[type="checkbox"]:checked'));
+            selectPhaseGroup(selectedGroup ? selectedGroup.tab.dataset.group : groupOrder[0]);
+        }
 
         const lyricsMarkerInput = document.getElementById('id_lyrics_marker');
         const lyricsButtons = Array.from(document.querySelectorAll('.lyrics-marker-btn'));

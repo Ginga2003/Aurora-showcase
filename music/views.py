@@ -5,6 +5,8 @@ import base64
 import mimetypes
 import zipfile
 import json
+from functools import lru_cache
+from pathlib import Path
 from datetime import timedelta
 from io import BytesIO
 from django.http import FileResponse
@@ -1977,6 +1979,75 @@ def _lyrics_response_value(lyrics_field):
     return lyrics_field.url
 
 
+def _tag_text(value):
+    if value is None:
+        return None
+    if hasattr(value, 'text'):
+        value = value.text
+    if isinstance(value, (list, tuple)):
+        value = value[0] if value else None
+    return str(value).strip() if value is not None else None
+
+
+def _tag_number(value):
+    text = _tag_text(value)
+    if not text:
+        return None
+    match = re.search(r'[-+]?\d+(?:\.\d+)?', text)
+    if not match:
+        return None
+    try:
+        return float(match.group(0))
+    except ValueError:
+        return None
+
+
+@lru_cache(maxsize=1024)
+def _read_replaygain_tags(file_path, modified_ns):
+    """Read optional ReplayGain tags without changing the audio file."""
+    try:
+        from mutagen import File as MutagenFile
+
+        audio = MutagenFile(file_path, easy=False)
+        tags = getattr(audio, 'tags', None)
+        if not tags:
+            return None
+
+        normalized_tags = {str(key).lower(): value for key, value in tags.items()}
+
+        def find_tag(suffix):
+            for key, value in normalized_tags.items():
+                if key == suffix or key.endswith(f':{suffix}'):
+                    return value
+            return None
+
+        gain_db = _tag_number(find_tag('replaygain_track_gain'))
+        peak = _tag_number(find_tag('replaygain_track_peak'))
+        if gain_db is None:
+            return None
+        return {
+            'gain_db': gain_db,
+            'peak': peak if peak is not None and peak > 0 else None,
+        }
+    except Exception:
+        return None
+
+
+def _song_audio_quality(song):
+    if not song.download_link:
+        return {'replaygain': None, 'fingerprint': None}
+    try:
+        file_path = Path(song.download_link.path).resolve()
+        file_stat = file_path.stat()
+        modified_ns = file_stat.st_mtime_ns
+    except (OSError, ValueError):
+        return {'replaygain': None, 'fingerprint': None}
+    return {
+        'replaygain': _read_replaygain_tags(str(file_path), modified_ns),
+        'fingerprint': f'{file_stat.st_size}:{modified_ns}',
+    }
+
+
 def get_song_details(request, song_id):
     """Fetch basic song details like lyrics for the frontend player."""
     try:
@@ -1991,6 +2062,7 @@ def get_song_details(request, song_id):
             'views': song.views,
             'likes_count': song.favorited_by.count(),
             'comments_count': song.comments.count(),
+            'audio_quality': _song_audio_quality(song),
         })
     except Song.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Song not found'})
