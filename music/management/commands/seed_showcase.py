@@ -5,11 +5,24 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.models import User as AuthUser
+from django.core.files import File
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-from music.models import Comment, FavoriteSongPosition, PlayHistory, Playlist, PlaylistSong, Song, User
+from music.models import Comment, FavoriteSongPosition, PlayHistory, Playlist, PlaylistSong, ProgramPhase, Song, User
+
+
+LICENSED_TRACK = {
+    "name": "Midnight",
+    "album": "CC0 Showcase",
+    "arrangement": "Anton Revin",
+    "song_type": "Electronic | Ambient | Piano",
+    "introduction": "A melancholy piano-and-synth instrumental released under CC0 1.0. Source: OpenGameArt.",
+    "release_date": "2015-10-06",
+    "asset": "showcase_assets/audio/Midnight.mp3",
+    "program_phase": "midnight-deep",
+}
 
 
 SAMPLE_TRACKS = [
@@ -54,15 +67,50 @@ class Command(BaseCommand):
             )
             admin_message = f", admin={options['admin_username']}"
 
+        licensed_song = self._create_licensed_song()
+
         if not options["with_sample_content"]:
-            self.stdout.write(self.style.SUCCESS(f"Showcase seed complete: user={options['username']}{admin_message}, songs=0, playlists=0."))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Showcase seed complete: user={options['username']}{admin_message}, "
+                    f"licensed_song={licensed_song.name}, songs=1, playlists=0."
+                )
+            )
             return
 
         profile = User.objects.get(username=options["username"])
         songs = self._create_sample_songs()
         self._create_sample_playlist(profile, songs)
         self._create_sample_activity(profile, songs)
-        self.stdout.write(self.style.SUCCESS(f"Showcase sample content created: {len(songs)} fake songs, 1 playlist{admin_message}."))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Showcase sample content created: licensed_song={licensed_song.name}, "
+                f"{len(songs)} fake songs, 1 playlist{admin_message}."
+            )
+        )
+
+    def _create_licensed_song(self):
+        asset_path = Path(settings.BASE_DIR) / LICENSED_TRACK["asset"]
+        if not asset_path.is_file():
+            raise CommandError(f"Bundled CC0 track is missing: {asset_path}")
+
+        song = Song.objects.create(
+            name=LICENSED_TRACK["name"],
+            album=LICENSED_TRACK["album"],
+            track_number=1,
+            arrangement=LICENSED_TRACK["arrangement"],
+            song_type=LICENSED_TRACK["song_type"],
+            introduction=LICENSED_TRACK["introduction"],
+            release_date=date.fromisoformat(LICENSED_TRACK["release_date"]),
+            views=0,
+        )
+        with asset_path.open("rb") as audio_file:
+            song.download_link.save(asset_path.name, File(audio_file), save=True)
+
+        program_phase = ProgramPhase.objects.filter(slug=LICENSED_TRACK["program_phase"]).first()
+        if program_phase:
+            song.program_phases.add(program_phase)
+        return song
 
     def _create_sample_songs(self):
         now = timezone.now()

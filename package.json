@@ -26,6 +26,7 @@
     "files": [
       "Aurora/**/*",
       "assets/**/*",
+      "showcase_assets/**/*",
       "media/avatars/default.jpeg",
       "media/covers/default_cover.jpg",
       "media/playlists/default_playlist.png",

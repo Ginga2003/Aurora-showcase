@@ -4,7 +4,7 @@
 
 Aurora 是一个基于 Django 的音乐库管理与播放 Web 应用，并提供可选的 Electron 桌面端封装。
 
-这是一个经过清理的展示版本。仓库保留应用代码、模板、静态资源、数据库结构和占位媒体，但移除了原始音乐数据库、上传歌曲、上传歌词、歌单封面、日志、备份文件和私有运行数据。
+这是一个经过清理的展示版本。仓库保留应用代码、模板、静态资源、数据库结构、占位媒体和一首明确采用 CC0 许可的示例曲，但移除了原始音乐数据库、用户上传歌曲、上传歌词、歌单封面、日志、备份文件和私有运行数据。
 
 ### 项目背景
 
@@ -28,7 +28,7 @@ Aurora 是一个基于 Django 的音乐库管理与播放 Web 应用，并提供
 
 ### 截图
 
-`assets/screenshots` 中的截图只使用虚构展示数据。仓库不应包含原始数据库、上传歌曲、真实用户数据或生成的占位音频。
+`assets/screenshots` 中的截图只使用虚构展示数据。仓库不包含原始数据库、用户上传歌曲、真实用户数据或生成的占位音频；唯一随包分发的音乐是记录于 `showcase_assets/README.md` 的 CC0 示例曲。
 
 ![Aurora featured page](assets/screenshots/home.png)
 
@@ -58,7 +58,7 @@ python manage.py reset_showcase --noinput
 这个副本刻意不包含：
 
 - 原始 `db.sqlite3` 内容。
-- 上传的歌曲文件。
+- 用户上传的歌曲文件；仅保留 `showcase_assets/README.md` 中列明的 CC0 示例曲。
 - 上传的歌词文件。
 - 上传的歌曲封面和歌单封面。
 - 服务日志、数据库备份和本地缓存目录。
@@ -104,10 +104,10 @@ copy .env.example .env
 python manage.py migrate
 ```
 
-创建一个无歌曲、无歌单的干净演示用户：
+创建演示用户、默认管理员和一首 CC0 示例曲：
 
 ```text
-python manage.py reset_showcase --noinput
+python manage.py seed_showcase --with-admin
 ```
 
 如需为截图临时生成虚构歌曲、活动数据和后台账号：
@@ -151,7 +151,7 @@ GitHub Release 推荐上传两个 Windows x64 产物：
 - `Aurora-Showcase-1.0.0-Windows-Portable.exe`：免安装版，下载后可直接运行。
 - `Aurora-Showcase-1.0.0-Windows-Setup.exe`：安装包版本。
 
-首次启动时，桌面端会在当前 Windows 用户数据目录中创建本地 SQLite 数据库和媒体目录，执行数据库迁移，并初始化一个无歌曲、无歌单的展示用户。应用包内不包含原始数据库、上传歌曲或私有运行数据。
+首次启动时，桌面端会在当前 Windows 用户数据目录中创建本地 SQLite 数据库和媒体目录，执行数据库迁移，并初始化一个包含一首 CC0 示例曲、无歌单的展示用户。应用包内不包含原始数据库、用户上传歌曲或私有运行数据。
 
 默认账号：
 
@@ -187,7 +187,7 @@ python manage.py test music
 - `python manage.py test music`
 - 使用 `demo / demo123456` 做登录冒烟测试
 - 如生成截图数据，使用 `admin / admin123456` 查看管理员数据看板
-- 最终重置为一个演示用户，且歌曲、歌单、评论均为零
+- 最终执行 `seed_showcase --with-admin`，保留一个演示用户、一个管理员、一首 CC0 示例曲，且歌单和评论均为零
 
 ### 部署注意
 
@@ -204,7 +204,7 @@ python manage.py test music
 
 Aurora is a Django-based music library and playback web application, with an optional Electron desktop wrapper.
 
-This repository is a sanitized showcase version. It keeps the application code, templates, static assets, database schema, and placeholder media, but removes the original music database, uploaded songs, uploaded lyrics, playlist covers, logs, backups, and private runtime data.
+This repository is a sanitized showcase version. It keeps the application code, templates, static assets, database schema, placeholder media, and one explicitly CC0-licensed sample track, while removing the original music database, user-uploaded songs, uploaded lyrics, playlist covers, logs, backups, and private runtime data.
 
 ### Project Background
 
@@ -228,7 +228,7 @@ This copy is intended as a public portfolio version, not as a production deploym
 
 ### Screenshots
 
-Screenshots in `assets/screenshots` are captured with fake showcase data only. The repository should not include the original database, uploaded songs, private user data, or generated placeholder audio.
+Screenshots in `assets/screenshots` are captured with fake showcase data only. The repository does not include the original database, user-uploaded songs, private user data, or generated placeholder audio; its only bundled music is the CC0 sample documented in `showcase_assets/README.md`.
 
 ![Aurora featured page](assets/screenshots/home.png)
 
@@ -258,13 +258,13 @@ python manage.py reset_showcase --noinput
 This copy intentionally does not include:
 
 - The original `db.sqlite3` content.
-- Uploaded song files.
+- User-uploaded song files; only the CC0 sample documented in `showcase_assets/README.md` is retained.
 - Uploaded lyric files.
 - Uploaded song covers and playlist covers.
 - Server logs, backup databases, and local cache folders.
 - The previous private-content toggle and filtering mechanism.
 
-The repository starts with no songs, so the Audio Quality panel reports `No Track` and does not fabricate learned loudness data. The radio taxonomy remains visible in the admin interface; importing legally sourced audio enables the real learning and assignment workflows.
+The default Showcase seed creates one legally bundled CC0 track, allowing playback, Audio Quality learning, and radio assignment to be demonstrated with real audio. The repository still excludes every original or user-uploaded song.
 
 The local working copy may temporarily create a small SQLite database for testing. The database is ignored by Git and should not be committed.
 
@@ -304,10 +304,10 @@ Initialize the database:
 python manage.py migrate
 ```
 
-Create a clean demo user with no songs or playlists:
+Create the demo user, default administrator, and one CC0 sample track:
 
 ```text
-python manage.py reset_showcase --noinput
+python manage.py seed_showcase --with-admin
 ```
 
 To temporarily generate fake songs, activity data, and an admin account for screenshots:
@@ -351,7 +351,7 @@ Recommended GitHub Release artifacts for Windows x64:
 - `Aurora-Showcase-1.0.0-Windows-Portable.exe`: portable build that can be run directly after download.
 - `Aurora-Showcase-1.0.0-Windows-Setup.exe`: installer build.
 
-On first launch, the desktop app creates a local SQLite database and media directory under the current Windows user data directory, runs migrations, and initializes a clean showcase user with no songs or playlists. The packaged app does not include the original database, uploaded songs, or private runtime data.
+On first launch, the desktop app creates a local SQLite database and media directory under the current Windows user data directory, runs migrations, and initializes a clean showcase user with one CC0 sample track and no playlists. The packaged app does not include the original database, user-uploaded songs, or private runtime data.
 
 Default logins:
 
@@ -387,7 +387,7 @@ Current showcase verification target:
 - `python manage.py test music`
 - Login smoke test with `demo / demo123456`
 - If screenshot data is generated, review the admin analytics dashboard with `admin / admin123456`
-- Final showcase reset with one demo user and zero songs/playlists/comments
+- Final `seed_showcase --with-admin` state with one demo user, one administrator, one CC0 sample track, and zero playlists/comments
 
 ### Deployment Notes
 
