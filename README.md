@@ -148,8 +148,8 @@ Electron 入口会启动 Django 开发服务，并打开本地应用窗口。
 
 GitHub Release 推荐上传两个 Windows x64 产物：
 
-- `Aurora-Showcase-1.0.0-Windows-Portable.exe`：免安装版，下载后可直接运行。
-- `Aurora-Showcase-1.0.0-Windows-Setup.exe`：安装包版本。
+- `Aurora-Showcase-1.0.3-Windows-Portable.exe`：免安装版，下载后可直接运行。
+- `Aurora-Showcase-1.0.3-Windows-Setup.exe`：安装包版本。
 
 首次启动时，桌面端会在当前 Windows 用户数据目录中创建本地 SQLite 数据库和媒体目录，执行数据库迁移，并初始化一个包含一首 CC0 示例曲、无歌单的展示用户。应用包内不包含原始数据库、用户上传歌曲或私有运行数据。
 
@@ -348,8 +348,8 @@ The Electron entry point starts the Django development server and opens the loca
 
 Recommended GitHub Release artifacts for Windows x64:
 
-- `Aurora-Showcase-1.0.0-Windows-Portable.exe`: portable build that can be run directly after download.
-- `Aurora-Showcase-1.0.0-Windows-Setup.exe`: installer build.
+- `Aurora-Showcase-1.0.3-Windows-Portable.exe`: portable build that can be run directly after download.
+- `Aurora-Showcase-1.0.3-Windows-Setup.exe`: installer build.
 
 On first launch, the desktop app creates a local SQLite database and media directory under the current Windows user data directory, runs migrations, and initializes a clean showcase user with one CC0 sample track and no playlists. The packaged app does not include the original database, user-uploaded songs, or private runtime data.
 

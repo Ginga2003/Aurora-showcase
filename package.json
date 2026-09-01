@@ -1,6 +1,6 @@
 {
   "name": "aurora-showcase",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Aurora is a Django-based music library and playback web application, with an optional Electron desktop wrapper.",
   "main": "main.js",
   "scripts": {
