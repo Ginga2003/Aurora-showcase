@@ -4,13 +4,13 @@
 
 Aurora 是一个基于 Django 的音乐库管理与播放 Web 应用，并提供可选的 Electron 桌面端封装。
 
-这是一个经过清理的展示版本。仓库保留应用代码、模板、静态资源、数据库结构、占位媒体和一首明确采用 CC0 许可的示例曲，但移除了原始音乐数据库、用户上传歌曲、上传歌词、歌单封面、日志、备份文件和私有运行数据。
+仓库提供应用代码、数据库结构、界面截图和 Windows 下载版。演示内容使用虚构数据与一首 CC0 授权示例曲。
 
 ### 项目背景
 
-原始 MusicHub 项目起点是课程团队项目。我早期主要参与数据库设计和音乐库模块。课程交付后，我继续维护并扩展项目，包括 Electron 桌面封装、管理员侧功能优化、播放体验调整、展示版脱敏与清理。
+原始 MusicHub 项目起点是课程团队项目。我早期主要参与数据库设计和音乐库模块。课程交付后，我继续维护并扩展项目，包括 Electron 桌面封装、管理员侧功能优化、播放体验调整、演示环境和项目文档完善。
 
-这个版本的定位是“可公开展示的代码副本”，不是生产环境版本。
+应用支持本地 Web 和 Windows 桌面演示。
 
 ### 主要功能
 
@@ -53,7 +53,7 @@ python manage.py runserver 127.0.0.1:8000
 python manage.py reset_showcase --noinput
 ```
 
-### 展示版清理范围
+### 演示数据与媒体
 
 这个副本刻意不包含：
 
@@ -146,7 +146,7 @@ Electron 入口会启动 Django 开发服务，并打开本地应用窗口。
 
 ### 下载版 / Release 构建
 
-GitHub Release 推荐上传两个 Windows x64 产物：
+Windows x64 下载版：
 
 - `Aurora-Showcase-1.0.3-Windows-Portable.exe`：免安装版，下载后可直接运行。
 - `Aurora-Showcase-1.0.3-Windows-Setup.exe`：安装包版本。
@@ -204,13 +204,13 @@ python manage.py test music
 
 Aurora is a Django-based music library and playback web application, with an optional Electron desktop wrapper.
 
-This repository is a sanitized showcase version. It keeps the application code, templates, static assets, database schema, placeholder media, and one explicitly CC0-licensed sample track, while removing the original music database, user-uploaded songs, uploaded lyrics, playlist covers, logs, backups, and private runtime data.
+The repository provides application code, database schema, interface screenshots and Windows releases. Demonstrations use fictional data and a CC0-licensed sample track.
 
 ### Project Background
 
-The original MusicHub project began as a course team project. My early contribution focused on database design and the music library module. After the course delivery, I continued maintaining and extending the project, including desktop packaging with Electron, admin-side improvements, playback experience refinements, and showcase cleanup.
+The original MusicHub project began as a course team project. My early contribution focused on database design and the music library module. After the course delivery, I continued maintaining and extending the project, including desktop packaging with Electron, admin-side improvements, playback experience refinements, and demo-environment and documentation improvements.
 
-This copy is intended as a public portfolio version, not as a production deployment.
+The application supports local web and Windows desktop demonstrations.
 
 ### Main Features
 
@@ -253,7 +253,7 @@ After screenshots are captured, reset the local database:
 python manage.py reset_showcase --noinput
 ```
 
-### Showcase Sanitization
+### Demo Data and Media
 
 This copy intentionally does not include:
 
@@ -346,7 +346,7 @@ The Electron entry point starts the Django development server and opens the loca
 
 ### Downloadable Release
 
-Recommended GitHub Release artifacts for Windows x64:
+Windows x64 downloads:
 
 - `Aurora-Showcase-1.0.3-Windows-Portable.exe`: portable build that can be run directly after download.
 - `Aurora-Showcase-1.0.3-Windows-Setup.exe`: installer build.
